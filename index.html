@@ -74,6 +74,15 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
 .dot{position:absolute;top:4px;right:16px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;padding:1px 5px}
 #toasts{position:fixed;top:60px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:9}
 .toast{background:#222a36;border:1px solid var(--line);padding:8px 16px;border-radius:10px;font-size:13px}
+.rc{display:none;right:44px}.tile.share.remote .rc{display:block}
+#ctlBar{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:var(--acc);color:#fff;padding:8px 14px;border-radius:12px;font-size:13px;display:flex;gap:10px;align-items:center;z-index:8;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+#ctlBar.req{background:#b45309}#ctlBar button{background:rgba(255,255,255,.22);padding:4px 12px;border-radius:8px}
+.tile.ctrl{border-color:var(--acc);cursor:crosshair}
+.rcur{position:absolute;pointer-events:none;z-index:4;transition:left .05s linear,top .05s linear}
+.rcur svg{width:22px;height:22px;fill:#f59e0b;stroke:#000;stroke-width:1}
+.rcur b{position:absolute;left:16px;top:18px;background:#f59e0b;color:#000;font-size:11px;padding:1px 6px;border-radius:6px;white-space:nowrap}
+.rip{position:absolute;width:30px;height:30px;margin:-15px;border-radius:50%;border:3px solid #f59e0b;pointer-events:none;animation:rip .5s forwards}
+@keyframes rip{to{transform:scale(2.2);opacity:0}}
 @media(max-width:760px){#side{position:fixed;inset:0;width:100%;z-index:5}.cb{min-width:54px}#grid.spot .tile.pinned{height:50vh}}
 </style>
 </head>
@@ -127,6 +136,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
     <button class="cb leave" id="leaveBtn"><svg viewBox="0 0 24 24"><path d="M10.7 13.3a16 16 0 0 0 2.6 2l1.3-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.7M22 2 2 22"/></svg><span>Leave</span></button>
   </div>
 </div>
+<div id="ctlBar" class="hidden"></div>
 <div id="toasts"></div>
 
 <script type="module">
@@ -254,6 +264,8 @@ function getPeer(id) {
   const out = [track('audio'), screenTrack || track('video')].filter(Boolean);
   out.forEach(t => pc.addTrack(t, localStream));
   ['audio', 'video'].forEach(k => { if (!out.find(t => t.kind === k)) pc.addTransceiver(k, { direction: 'recvonly' }); });
+  pc.ondatachannel = e => dc(id, e.channel);
+  if (me.uid < id) dc(id, pc.createDataChannel('ctl'));
   pc.onicecandidate = e => e.candidate && send(id, 'candidate', e.candidate.toJSON());
   pc.ontrack = e => { p.stream = e.streams[0]; watch(id, p.stream); paint(id); };
   pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && me.uid < id) initiate(id, true); };
@@ -279,6 +291,7 @@ async function onSignal(s) {
   else p.q.push(data);
 }
 function dropPeer(id, full) {
+  if (id === ctrlBy || id === ctrlTarget || id === pending) endControl(false);
   if (peers[id]) { peers[id].pc.close(); delete peers[id]; }
   delete speakers[id];
   if (full) { delete roster[id]; $('t-' + id)?.remove(); if (pinned === id) pinned = null; renderPeople(); layout(); }
@@ -289,9 +302,10 @@ const initials = n => n.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpper
 function tile(id) {
   let t = $('t-' + id); if (t) return t;
   t = document.createElement('div'); t.className = 'tile'; t.id = 't-' + id;
-  t.innerHTML = '<video autoplay playsinline></video><div class="av"><span></span></div><div class="lbl"><i class="mi"></i><span class="nm"></span><i class="hd">✋</i></div><button class="pin" title="Pin / unpin">📌</button>';
+  t.innerHTML = '<video autoplay playsinline></video><div class="av"><span></span></div><div class="lbl"><i class="mi"></i><span class="nm"></span><i class="hd">✋</i></div><button class="pin" title="Pin / unpin">📌</button><button class="pin rc" title="Request control of this screen">🖱</button>';
   if (id === me.uid) t.querySelector('video').muted = true;
   t.querySelector('.pin').onclick = () => { pinned = pinned === id ? null : id; layout(); };
+  t.querySelector('.rc').onclick = () => requestControl(id);
   $('grid').appendChild(t); return t;
 }
 function paint(id) {
@@ -301,7 +315,7 @@ function paint(id) {
   t.querySelector('.av span').textContent = initials(r.name);
   t.classList.toggle('novid', !r.video && !r.sharing);
   t.classList.toggle('muted', !r.audio); t.classList.toggle('hand', !!r.hand);
-  t.classList.toggle('share', !!r.sharing); t.classList.toggle('me', self && !r.sharing);
+  t.classList.toggle('share', !!r.sharing); t.classList.toggle('me', self && !r.sharing); t.classList.toggle('remote', !self);
   const v = t.querySelector('video'), s = self ? localView : peers[id]?.stream;
   if (s && v.srcObject !== s) v.srcObject = s;
   renderPeople(); layout();
@@ -428,8 +442,110 @@ $('shareBtn').onclick = async () => {
 };
 function stopShare() {
   if (!screenTrack) return;
+  endControl(true); agent?.close(); agent = null; agentAsked = false;
   screenTrack.stop(); screenTrack = null; swapVideo(track('video'));
   localView = localStream; $('t-' + me.uid).querySelector('video').srcObject = localStream; upd({ sharing: false });
+}
+
+/* ================= Remote control of a shared screen =================
+   Request -> sharer approves -> controller's mouse/keyboard stream over a WebRTC data channel.
+   Browsers cannot move the OS cursor, so the sharer sees a labelled remote pointer + click ripples;
+   with the optional local agent (agent.js) the events drive the real mouse and keyboard.        */
+let ctrlTarget = null, ctrlBy = null, pending = null, agent = null, agentAsked = false, offCtl = null, cur = null;
+const sendCtl = (id, m) => { const d = peers[id]?.dc; if (d && d.readyState === 'open') { d.send(JSON.stringify(m)); return true; } return false; };
+function dc(id, ch) {
+  if (peers[id]) peers[id].dc = ch;
+  ch.onmessage = e => onCtl(id, JSON.parse(e.data));
+  ch.onclose = () => { if (id === ctrlBy || id === ctrlTarget) endControl(false); };
+}
+function showBar(text, btns, cls) {
+  const b = $('ctlBar'); b.className = cls || ''; b.textContent = text;
+  btns.forEach(([l, f]) => { const x = document.createElement('button'); x.textContent = l; x.onclick = f; b.append(x); });
+}
+const hideBar = () => { $('ctlBar').className = 'hidden'; };
+
+function requestControl(id) {
+  if (ctrlTarget || pending) return toast('A control request is already active');
+  if (!roster[id]?.sharing) return;
+  if (!sendCtl(id, { t: 'req' })) return toast('Connection not ready, try again in a moment');
+  pending = id; toast('Control requested from ' + roster[id].name);
+}
+function onCtl(from, m) {
+  const name = roster[from]?.name || 'Someone';
+  if (m.t === 'req') {
+    if (ctrlBy || !screenTrack) return sendCtl(from, { t: 'deny', why: ctrlBy ? 'busy' : 'not sharing' });
+    showBar(name + ' requests control of your screen', [['Allow', () => grant(from)], ['Deny', () => { sendCtl(from, { t: 'deny' }); hideBar(); }]], 'req');
+  } else if (m.t === 'grant') { if (pending === from) { pending = null; startCtrl(from); } }
+  else if (m.t === 'deny') { if (pending === from) { pending = null; toast(name + ' declined' + (m.why ? ' (' + m.why + ')' : '')); } }
+  else if (m.t === 'revoke') { if (from === ctrlBy || from === ctrlTarget) { toast('Control ended'); endControl(false); } }
+  else if (ctrlBy === from) applyInput(m);
+}
+function grant(from) {
+  ctrlBy = from; sendCtl(from, { t: 'grant' });
+  showBar((roster[from]?.name || 'Someone') + ' is controlling your screen', [['Stop control', () => endControl(true)]]);
+  connectAgent();
+}
+function endControl(notify) {
+  const other = ctrlBy || ctrlTarget; if (notify && other) sendCtl(other, { t: 'revoke' });
+  offCtl?.(); offCtl = null; ctrlBy = ctrlTarget = pending = null; hideBar();
+  $('t-' + me.uid)?.querySelectorAll('.rcur,.rip').forEach(n => n.remove()); cur = null;
+}
+
+/* Controller side: capture input on the remote tile */
+function startCtrl(id) {
+  ctrlTarget = id; const t = $('t-' + id), v = t.querySelector('video'); t.classList.add('ctrl');
+  showBar('Controlling ' + roster[id].name + "'s screen", [['Release', () => endControl(true)]]);
+  let last = 0;
+  const pos = e => {
+    const r = v.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight; if (!vw) return null;
+    const k = Math.min(r.width / vw, r.height / vh), cw = vw * k, ch = vh * k;
+    const x = (e.clientX - r.left - (r.width - cw) / 2) / cw, y = (e.clientY - r.top - (r.height - ch) / 2) / ch;
+    return x < 0 || y < 0 || x > 1 || y > 1 ? null : { x, y };
+  };
+  const H = {
+    mousemove: e => { const n = performance.now(); if (n - last < 33) return; const p = pos(e); if (p) { last = n; sendCtl(id, { t: 'm', ...p }); } },
+    mousedown: e => { const p = pos(e); if (p) { e.preventDefault(); sendCtl(id, { t: 'd', b: e.button, ...p }); } },
+    mouseup: e => { const p = pos(e); if (p) sendCtl(id, { t: 'u', b: e.button, ...p }); },
+    contextmenu: e => e.preventDefault(),
+    wheel: e => { e.preventDefault(); sendCtl(id, { t: 'w', dx: e.deltaX, dy: e.deltaY }); }
+  };
+  for (const k in H) t.addEventListener(k, H[k], { passive: false });
+  const key = e => { if (/INPUT|TEXTAREA/.test(e.target.tagName)) return; e.preventDefault(); sendCtl(id, { t: 'k', key: e.key, down: e.type === 'keydown' }); };
+  document.addEventListener('keydown', key); document.addEventListener('keyup', key);
+  offCtl = () => { for (const k in H) t.removeEventListener(k, H[k]); document.removeEventListener('keydown', key); document.removeEventListener('keyup', key); t.classList.remove('ctrl'); };
+}
+
+/* Sharer side: show the controller's pointer (and forward to the optional agent) */
+function applyInput(m) {
+  const t = $('t-' + me.uid); if (!t) return; const v = t.querySelector('video');
+  if (agent && agent.readyState === 1) agent.send(JSON.stringify(m));
+  if (m.x !== undefined) {
+    if (!cur || !cur.isConnected) {
+      cur = document.createElement('div'); cur.className = 'rcur';
+      cur.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 3l16 7-7 2-2 7z"/></svg><b></b>';
+      cur.querySelector('b').textContent = roster[ctrlBy]?.name || ''; t.append(cur);
+    }
+    const r = v.getBoundingClientRect(), vw = v.videoWidth || 1, vh = v.videoHeight || 1, k = Math.min(r.width / vw, r.height / vh), cw = vw * k, ch = vh * k;
+    const px = (r.width - cw) / 2 + m.x * cw, py = (r.height - ch) / 2 + m.y * ch;
+    cur.style.left = px + 'px'; cur.style.top = py + 'px';
+    if (m.t === 'd') { const rp = document.createElement('div'); rp.className = 'rip'; rp.style.left = px + 'px'; rp.style.top = py + 'px'; t.append(rp); setTimeout(() => rp.remove(), 500); }
+  } else if (m.t === 'k' && m.down && cur) cur.querySelector('b').textContent = (roster[ctrlBy]?.name || '') + ' ⌨ ' + m.key;
+}
+function connectAgent() {
+  if (agentAsked) return; agentAsked = true;
+  if (screenTrack?.getSettings().displaySurface !== 'monitor') return toast('Pointer-only mode. Share your "Entire screen" for real mouse/keyboard control.');
+  let tok = ''; try { tok = localStorage.getItem('agentToken') || ''; } catch {}
+  if (!tok) tok = (prompt('Optional: paste the token printed by the agent so the controller can use your real mouse and keyboard.\nLeave empty for pointer-only mode.') || '').trim();
+  if (!tok) return;
+  let opened = false;
+  try {
+    agent = new WebSocket('ws://127.0.0.1:8787/?token=' + encodeURIComponent(tok));
+    agent.onopen = () => { opened = true; try { localStorage.setItem('agentToken', tok); } catch {} toast('Control agent connected'); };
+    agent.onclose = () => {
+      if (!opened) { try { localStorage.removeItem('agentToken'); } catch {} toast('Agent refused the token or is not running (pointer-only mode)'); }
+      agent = null;
+    };
+  } catch {}
 }
 
 /* Side panel */
