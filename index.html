@@ -45,6 +45,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
 .lbl{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.65);padding:4px 10px;border-radius:8px;font-size:13px;display:flex;gap:6px;align-items:center;max-width:80%}
 .lbl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile.muted .mi::before{content:'🔇'}.hd{display:none}.tile.hand .hd{display:inline}
+.ed{display:none;font-style:normal;font-size:11px;color:#fbbf24;white-space:nowrap}.tile.educk .ed{display:inline}
 .pin{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:8px;padding:4px 7px;font-size:13px;opacity:0}
 .tile:hover .pin{opacity:1}
 #grid.spot{display:flex;flex-wrap:wrap;align-content:flex-start}
@@ -66,6 +67,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
 #plist li:hover{background:#1f2631}
 .pav{width:32px;height:32px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
 #plist .st{margin-left:auto;font-size:13px}#plist span:nth-child(2){flex:1;overflow:hidden;text-overflow:ellipsis}
+#plist .pm{font-size:11px;color:var(--acc);padding:3px 8px;border:1px solid var(--line);border-radius:8px;white-space:nowrap}
 #bar{display:flex;justify-content:center;gap:10px;padding:12px;border-top:1px solid var(--line);flex-wrap:wrap}
 .cb{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:68px;padding:8px 10px;border-radius:12px;font-size:11px;color:var(--mut);position:relative}
 .cb:hover{background:#1f2631;color:var(--txt)}
@@ -100,6 +102,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
   <div class="form">
     <h1>Pro Meet</h1>
     <p>Secure video meetings with chat, screen sharing and live participant sync powered by Firebase.</p>
+    <p>🎧 Tip: headphones give the cleanest audio. If another device is in the same room, Pro Meet detects it and silences the duplicate audio automatically.</p>
     <input id="nameIn" placeholder="Your name" maxlength="30">
     <input id="roomIn" placeholder="Room code" maxlength="40">
     <button class="btn" id="joinBtn">Join meeting</button>
@@ -129,6 +132,8 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
     <button class="cb" id="micBtn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span>Mute</span></button>
     <button class="cb" id="camBtn"><svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg><span>Stop video</span></button>
     <button class="cb act" id="noiseBtn" title="Cycle noise cancellation"><svg viewBox="0 0 24 24"><path d="M2 12h3l2-6 4 12 3-9 2 3h6"/></svg><span>Noise: Standard</span></button>
+    <button class="cb act" id="echoBtn" title="Stops echo: gates your mic while others speak through speakers, and silences any participant whose audio is picked up by your microphone (same room)."><svg viewBox="0 0 24 24"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Echo guard: On</span></button>
+    <button class="cb" id="spkBtn" title="Mute incoming audio on this device"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><span>Speaker</span></button>
     <button class="cb" id="shareBtn"><svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Share</span></button>
     <button class="cb" id="handBtn"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/></svg><span>Raise hand</span></button>
     <button class="cb" id="chatBtn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span><i class="dot hidden" id="unread">0</i></button>
@@ -159,11 +164,15 @@ const auth = getAuth(app), db = getFirestore(app);
 const $ = id => document.getElementById(id);
 const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
 const STALE = 45000;
-const AUDIO_C = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
+const AUDIO_C = {
+  echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true },
+  channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 }, voiceIsolation: { ideal: true }
+};
 
 let me, room, localStream, screenTrack = null, localView, actx, pinned = null, chatOpen = false, unread = 0, firstSnap = true;
 let partCol, sigCol, msgCol, myRef;
 const roster = {}, peers = {}, speakers = {}, unsubs = [];
+const echoMuted = {}, echoIgnore = {}, ech = {}, lv = {}, lastR = {}, lastNote = {};
 let chain = Promise.resolve();
 
 /* ================= Lobby ================= */
@@ -171,10 +180,25 @@ const hashRoom = decodeURIComponent(location.hash.slice(1));
 if (hashRoom) $('roomIn').value = hashRoom;
 $('newBtn').onclick = () => $('roomIn').value = Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6);
 
+/* Make sure the browser's echo canceller is really running on the microphone */
+async function hardenMic(t) {
+  try {
+    const s = t.getSettings();
+    if (s.echoCancellation === false || s.noiseSuppression === false || s.autoGainControl === false)
+      await t.applyConstraints({ echoCancellation: true, noiseSuppression: true, autoGainControl: true });
+  } catch {}
+  return t.getSettings ? t.getSettings() : {};
+}
+
 (async () => {
   try { localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: AUDIO_C }); }
   catch { try { localStream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_C }); } catch { localStream = new MediaStream(); $('err').textContent = 'No camera/mic found or permission denied. You can still join as a viewer.'; } }
   $('preview').srcObject = localStream; localView = localStream;
+  const mt = localStream.getAudioTracks()[0];
+  if (mt) {
+    const as = await hardenMic(mt);
+    if (as.echoCancellation === false) $('err').textContent = 'Echo cancellation is unavailable on this microphone. Please use headphones.';
+  }
 })();
 const track = k => localStream && localStream.getTracks().find(t => t.kind === k);
 $('pMic').onclick = e => { const t = track('audio'); if (t) { t.enabled = !t.enabled; e.currentTarget.classList.toggle('off', !t.enabled); } };
@@ -192,6 +216,7 @@ $('joinBtn').onclick = async () => {
     me = { uid: cred.user.uid, name };
     await setupAudio();
     await enter();
+    detectHeadphones();
   } catch (e) {
     console.error(e);
     $('err').textContent = 'Could not join (' + (e.code || e.message) + '). Enable Anonymous Auth + Firestore and publish the rules.';
@@ -294,7 +319,10 @@ function dropPeer(id, full) {
   if (id === ctrlBy || id === ctrlTarget || id === pending) endControl(false);
   if (peers[id]) { peers[id].pc.close(); delete peers[id]; }
   delete speakers[id];
-  if (full) { delete roster[id]; $('t-' + id)?.remove(); if (pinned === id) pinned = null; renderPeople(); layout(); }
+  if (full) {
+    delete roster[id]; delete echoMuted[id]; delete echoIgnore[id]; delete ech[id]; delete lv[id]; delete lastR[id]; delete lastNote[id];
+    $('t-' + id)?.remove(); if (pinned === id) pinned = null; renderPeople(); layout();
+  }
 }
 
 /* ================= UI: tiles / layout ================= */
@@ -302,7 +330,7 @@ const initials = n => n.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpper
 function tile(id) {
   let t = $('t-' + id); if (t) return t;
   t = document.createElement('div'); t.className = 'tile'; t.id = 't-' + id;
-  t.innerHTML = '<video autoplay playsinline></video><div class="av"><span></span></div><div class="lbl"><i class="mi"></i><span class="nm"></span><i class="hd">✋</i></div><button class="pin" title="Pin / unpin">📌</button><button class="pin rc" title="Request control of this screen">🖱</button>';
+  t.innerHTML = '<video autoplay playsinline></video><div class="av"><span></span></div><div class="lbl"><i class="mi"></i><span class="nm"></span><i class="hd">✋</i><i class="ed" title="Muted on this device to prevent echo">🔇 echo guard</i></div><button class="pin" title="Pin / unpin">📌</button><button class="pin rc" title="Request control of this screen">🖱</button>';
   if (id === me.uid) t.querySelector('video').muted = true;
   t.querySelector('.pin').onclick = () => { pinned = pinned === id ? null : id; layout(); };
   t.querySelector('.rc').onclick = () => requestControl(id);
@@ -317,8 +345,14 @@ function paint(id) {
   t.classList.toggle('muted', !r.audio); t.classList.toggle('hand', !!r.hand);
   t.classList.toggle('share', !!r.sharing); t.classList.toggle('me', self && !r.sharing); t.classList.toggle('remote', !self);
   const v = t.querySelector('video'), s = self ? localView : peers[id]?.stream;
+  v.muted = self || !spkOn || !!echoMuted[id];
   if (s && v.srcObject !== s) v.srcObject = s;
   renderPeople(); layout();
+}
+function applyPlayout(id) {
+  if (!me || id === me.uid) return;
+  const v = $('t-' + id)?.querySelector('video'); if (!v) return;
+  v.muted = !spkOn || !!echoMuted[id];
 }
 function layout() {
   const g = $('grid'), n = Object.keys(roster).length, spot = pinned && roster[pinned];
@@ -335,52 +369,146 @@ function renderPeople() {
     const li = document.createElement('li'), av = document.createElement('div'), nm = document.createElement('span'), st = document.createElement('span');
     av.className = 'pav'; av.textContent = initials(r.name); nm.textContent = r.name + (id === me.uid ? ' (You)' : '');
     st.className = 'st'; st.textContent = (r.hand ? '✋ ' : '') + (r.sharing ? '🖥 ' : '') + (r.audio ? '🎤' : '🔇') + (r.video ? ' 📷' : ' 🚫');
-    li.append(av, nm, st); ul.append(li);
+    li.append(av, nm, st);
+    if (id !== me.uid && (echoMuted[id] || echoIgnore[id])) {
+      const b = document.createElement('button'); b.className = 'pm';
+      b.textContent = echoIgnore[id] ? 'Echo guard: off' : 'Echo-muted · allow';
+      b.title = echoIgnore[id] ? 'Let Pro Meet silence this participant again when echo is detected' : 'Always play this participant, even if echo is detected';
+      b.onclick = () => { echoIgnore[id] = !echoIgnore[id]; if (echoIgnore[id]) { echoMuted[id] = false; $('t-' + id)?.classList.remove('educk'); applyPlayout(id); } renderPeople(); };
+      li.append(b);
+    }
+    ul.append(li);
   });
 }
 function toast(t) {
-  const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; $('toasts').append(d); setTimeout(() => d.remove(), 3000);
+  const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; $('toasts').append(d); setTimeout(() => d.remove(), 3500);
 }
 
-/* Active-speaker detection */
+/* ================= Level analysis (speaking highlight + echo detection) ================= */
+const HOP = 25;            // ms between level samples
+const WIN = 100;           // analysis window = 2.5 s
+const RING = 200;          // ring length = 5 s
+const fbuf = new Float32Array(2048);
+lv.mic = new Float32Array(RING);
+let tickN = 0, lastMicActive = -1e9, micAn = null;
+let echoGuard = true, headphones = false, ducked = false, duckUntil = 0, spkOn = true;
+
 function watch(id, stream) {
   if (speakers[id] || !stream || !stream.getAudioTracks().length) return;
   try {
-    getCtx(); const a = actx.createAnalyser(); a.fftSize = 256;
+    getCtx(); const a = actx.createAnalyser(); a.fftSize = 512;
     actx.createMediaStreamSource(stream).connect(a); speakers[id] = a;
   } catch {}
 }
-setInterval(() => {
-  const buf = new Uint8Array(128);
-  for (const id in speakers) {
-    speakers[id].getByteFrequencyData(buf);
-    const lvl = buf.reduce((a, b) => a + b, 0) / buf.length;
-    $('t-' + id)?.classList.toggle('speaking', lvl > 18 && roster[id]?.audio !== false);
+function rms(an) {
+  const n = an.fftSize; an.getFloatTimeDomainData(fbuf);
+  let s = 0; for (let i = 0; i < n; i++) s += fbuf[i] * fbuf[i];
+  return Math.sqrt(s / n);
+}
+
+/* Best Pearson correlation between mic envelope A[i] and a participant's envelope B[i+k], k in [k0,k1] */
+function bestCorr(A, B, k0, k1) {
+  let top = -1;
+  for (let k = k0; k <= k1; k++) {
+    const i0 = Math.max(0, -k), i1 = Math.min(WIN - 1, WIN - 1 - k);
+    let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    for (let i = i0; i <= i1; i++) { const x = A[i], y = B[i + k]; n++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
+    const vx = sxx - sx * sx / n, vy = syy - sy * sy / n;
+    if (vx < 1e-6 || vy < 1e-6) continue;
+    const c = (sxy - sx * sy / n) / Math.sqrt(vx * vy);
+    if (c > top) top = c;
   }
-}, 250);
+  return top;
+}
+/* Does my microphone hear what this participant is sending (my voice coming back, or them speaking in my room)?
+   The mic leads their stream by the network delay (positive lag). Speaker leakage would show up at negative lag
+   and is handled by the mic gate instead. */
+function echoScore(id) {
+  const q = lv[id], m = lv.mic;
+  if (!q || tickN < WIN + 8) return 0;
+  const A = new Float32Array(WIN), B = new Float32Array(WIN); let am = 0, at = 0;
+  for (let i = 0; i < WIN; i++) {
+    const s = (tickN - WIN + i) % RING, a = m[s], b = q[s];
+    if (a > 0.015) am++; if (b > 0.015) at++;
+    A[i] = Math.log(a + 0.002); B[i] = Math.log(b + 0.002);
+  }
+  if (am < 15 || at < 15) return 0;
+  const pos = bestCorr(A, B, 3, 40), neg = bestCorr(A, B, -8, -1);
+  return pos > neg + 0.1 ? pos : 0;
+}
+function analyse(now) {
+  for (const id in lv) {
+    if (id === 'mic') continue;
+    const e = ech[id] || (ech[id] = { streak: 0, hit: -1e9 });
+    if (echoScore(id) > 0.6) { if (++e.streak >= 3) e.hit = now; }
+    else e.streak = Math.max(0, e.streak - 1);
+  }
+}
+function notifyEcho(id) {
+  const n = performance.now(); if (n - (lastNote[id] || 0) < 60000) return; lastNote[id] = n;
+  toast('Echo detected with ' + (roster[id]?.name || 'a participant') + ': muting their audio on this device while you speak');
+}
+function uiTick(now) {
+  let far = 0, changed = false;
+  for (const id in speakers) {
+    const r = lastR[id] || 0, rs = roster[id];
+    $('t-' + id)?.classList.toggle('speaking', r > 0.012 && rs?.audio !== false);
+    if (id === me.uid) continue;
+    const e = ech[id];
+    const m = !!(echoGuard && !echoIgnore[id] && e && now - e.hit < 3000 && now - lastMicActive < 500);
+    if (m !== !!echoMuted[id]) {
+      echoMuted[id] = m; changed = true; applyPlayout(id);
+      $('t-' + id)?.classList.toggle('educk', m); if (m) notifyEcho(id);
+    }
+    if (!echoMuted[id] && spkOn && rs?.audio !== false) far = Math.max(far, r);
+  }
+  if (changed) renderPeople();
+  // Speaker leakage guard: while someone is audible on my speakers, make the mic gate stricter
+  const duckOn = echoGuard && !headphones && spkOn;
+  if (duckOn && far > 0.008) duckUntil = now + 400;
+  const d = duckOn && now < duckUntil;
+  if (d !== ducked) { ducked = d; gateNode?.port.postMessage({ duck: d }); }
+}
+function sample() {
+  if (!me) return;
+  const i = tickN % RING, now = performance.now();
+  const mr = micAn ? rms(micAn) : 0; lv.mic[i] = mr; if (mr > 0.015) lastMicActive = now;
+  for (const id in speakers) {
+    const v = rms(speakers[id]); lastR[id] = v;
+    if (id !== me.uid) (lv[id] || (lv[id] = new Float32Array(RING)))[i] = v;
+  }
+  for (const id in lv) if (id !== 'mic' && !speakers[id]) delete lv[id];
+  tickN++;
+  if (tickN % 4 === 0) uiTick(now);
+  if (tickN % 8 === 0) analyse(now);
+}
 
 /* ================= Noise cancellation pipeline =================
    Mic -> browser NS/AEC/AGC -> 90 Hz high-pass (rumble/hum) -> adaptive noise gate
-   (AudioWorklet) -> compressor (tames keyboard clacks / bangs) -> sent track        */
+   (AudioWorklet) -> compressor (tames keyboard clacks / bangs) -> sent track
+   A pre-gate analyser feeds the same-room echo detector.                           */
 let rawTrack = null, gateNode = null, noiseMode = 1;
 const MODES = [{ n: 'Off', m: 0 }, { n: 'Standard', m: 2.5 }, { n: 'Strong', m: 4 }];
 const GATE = `class G extends AudioWorkletProcessor{
-constructor(){super();this.g=1;this.f=0.004;this.h=0;this.m=2.5;this.port.onmessage=e=>{this.m=e.data}}
+constructor(){super();this.g=1;this.f=0.004;this.h=0;this.m=2.5;this.k=0;
+this.port.onmessage=e=>{const d=e.data;if(typeof d==='number')this.m=d;else if(d&&'duck' in d)this.k=d.duck?1:0}}
 process(i,o){const x=i[0][0],y=o[0];if(!x)return true;
-let s=0;for(let k=0;k<x.length;k++)s+=x[k]*x[k];const r=Math.sqrt(s/x.length);
-const t=Math.min(0.04,Math.max(0.006,this.f*this.m));
-if(r<this.f)this.f=this.f*0.9+r*0.1;else if(r<=t)this.f=this.f*0.999+r*0.001;else this.f=Math.min(0.015,this.f*0.9999+r*0.0001);
-if(this.m===0){this.g=1}else{
-if(r>t)this.h=Math.round(sampleRate*0.3/128);
+let s=0;for(let n=0;n<x.length;n++)s+=x[n]*x[n];const r=Math.sqrt(s/x.length);
+let t=Math.min(0.04,Math.max(0.006,this.f*this.m));
+if(this.k)t=Math.max(t*2.5,0.035);
+else{if(r<this.f)this.f=this.f*0.9+r*0.1;else if(r<=t)this.f=this.f*0.999+r*0.001;else this.f=Math.min(0.015,this.f*0.9999+r*0.0001)}
+if(this.m===0&&!this.k){this.g=1}else{
+if(r>t)this.h=Math.round(sampleRate*(this.k?0.12:0.3)/128);
 const open=r>t||this.h-- >0;
-this.g+=((open?1:0.03)-this.g)*(open?0.4:0.015)}
-for(const c of y)for(let k=0;k<x.length;k++)c[k]=x[k]*this.g;return true}}
+this.g+=((open?1:0.02)-this.g)*(open?0.5:(this.k?0.08:0.015))}
+for(const c of y)for(let n=0;n<x.length;n++)c[n]=x[n]*this.g;return true}}
 registerProcessor('gate',G)`;
 function getCtx() {
   actx = actx || new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
   if (actx.state === 'suspended') actx.resume();
   return actx;
 }
+['click', 'keydown', 'touchstart', 'visibilitychange'].forEach(ev => addEventListener(ev, () => { if (actx && actx.state === 'suspended') actx.resume(); }, { passive: true }));
 async function setupAudio() {
   const raw = track('audio'); if (!raw) return;
   try {
@@ -390,7 +518,9 @@ async function setupAudio() {
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -28; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
     const dest = c.createMediaStreamDestination();
-    src.connect(hp); let last = hp;
+    src.connect(hp);
+    micAn = c.createAnalyser(); micAn.fftSize = 512; hp.connect(micAn);    // pre-gate tap for echo detection
+    let last = hp;
     try {
       await c.audioWorklet.addModule(URL.createObjectURL(new Blob([GATE], { type: 'application/javascript' })));
       gateNode = new AudioWorkletNode(c, 'gate', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] });
@@ -398,6 +528,7 @@ async function setupAudio() {
     } catch (e) { console.warn('Adaptive gate unavailable, using filters only', e); }
     last.connect(comp); comp.connect(dest);
     const proc = dest.stream.getAudioTracks()[0];
+    try { proc.contentHint = 'speech'; } catch {}
     proc.enabled = raw.enabled; raw.enabled = true;          // keep lobby mute state; mute now acts on the processed track
     localStream.removeTrack(raw); localStream.addTrack(proc);
   } catch (e) { console.warn('Audio pipeline failed, using raw mic', e); }
@@ -409,6 +540,31 @@ $('noiseBtn').onclick = () => {
   $('noiseBtn').classList.toggle('act', noiseMode > 0);
   toast('Noise cancellation: ' + MODES[noiseMode].n);
 };
+function setEcho() { $('echoBtn').classList.toggle('act', echoGuard); $('echoBtn').querySelector('span').textContent = 'Echo guard: ' + (echoGuard ? 'On' : 'Off'); }
+$('echoBtn').onclick = () => {
+  echoGuard = !echoGuard;
+  if (!echoGuard && ducked) { ducked = false; gateNode?.port.postMessage({ duck: false }); }
+  setEcho(); toast('Echo guard ' + (echoGuard ? 'on' : 'off'));
+};
+function applySpk() { for (const id in roster) applyPlayout(id); }
+$('spkBtn').onclick = () => {
+  spkOn = !spkOn; applySpk();
+  $('spkBtn').classList.toggle('off', !spkOn); $('spkBtn').querySelector('span').textContent = spkOn ? 'Speaker' : 'Speaker off';
+  toast(spkOn ? 'Incoming audio on' : 'Incoming audio muted on this device');
+};
+async function detectHeadphones() {
+  try {
+    const outs = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === 'audiooutput');
+    const d = outs.find(x => x.deviceId === 'default') || outs[0];
+    if (!d || !d.label) return;
+    const hpNow = /headphone|headset|earphone|earbud|airpod|buds/i.test(d.label);
+    if (hpNow !== headphones) {
+      headphones = hpNow;
+      toast(hpNow ? 'Headphones detected: speaker-echo gate paused' : 'Speakers in use: echo guard active');
+    }
+  } catch {}
+}
+navigator.mediaDevices?.addEventListener?.('devicechange', () => { if (me) detectHeadphones(); });
 
 /* ================= Controls ================= */
 function upd(p) { Object.assign(roster[me.uid], p); paint(me.uid); updateDoc(myRef, p).catch(() => {}); syncButtons(); }
@@ -590,6 +746,9 @@ addEventListener('keydown', e => {
   if (!me || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
   if (e.key === 'm') toggleMic(); if (e.key === 'v') toggleCam(); if (e.key === 'c') openPanel('chat');
 });
+
+/* Start the level sampler (drives speaking highlight, echo guard and same-room echo detection) */
+setInterval(sample, HOP);
 </script>
 </body>
 </html>
