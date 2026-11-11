@@ -119,6 +119,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
   <div id="bar">
     <button class="cb" id="micBtn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span>Mute</span></button>
     <button class="cb" id="camBtn"><svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg><span>Stop video</span></button>
+    <button class="cb act" id="noiseBtn" title="Cycle noise cancellation"><svg viewBox="0 0 24 24"><path d="M2 12h3l2-6 4 12 3-9 2 3h6"/></svg><span>Noise: Standard</span></button>
     <button class="cb" id="shareBtn"><svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Share</span></button>
     <button class="cb" id="handBtn"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/></svg><span>Raise hand</span></button>
     <button class="cb" id="chatBtn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span><i class="dot hidden" id="unread">0</i></button>
@@ -148,6 +149,7 @@ const auth = getAuth(app), db = getFirestore(app);
 const $ = id => document.getElementById(id);
 const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
 const STALE = 45000;
+const AUDIO_C = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
 
 let me, room, localStream, screenTrack = null, localView, actx, pinned = null, chatOpen = false, unread = 0, firstSnap = true;
 let partCol, sigCol, msgCol, myRef;
@@ -160,8 +162,8 @@ if (hashRoom) $('roomIn').value = hashRoom;
 $('newBtn').onclick = () => $('roomIn').value = Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6);
 
 (async () => {
-  try { localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: { echoCancellation: true, noiseSuppression: true } }); }
-  catch { try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { localStream = new MediaStream(); $('err').textContent = 'No camera/mic found or permission denied. You can still join as a viewer.'; } }
+  try { localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: AUDIO_C }); }
+  catch { try { localStream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_C }); } catch { localStream = new MediaStream(); $('err').textContent = 'No camera/mic found or permission denied. You can still join as a viewer.'; } }
   $('preview').srcObject = localStream; localView = localStream;
 })();
 const track = k => localStream && localStream.getTracks().find(t => t.kind === k);
@@ -169,6 +171,7 @@ $('pMic').onclick = e => { const t = track('audio'); if (t) { t.enabled = !t.ena
 $('pCam').onclick = e => { const t = track('video'); if (t) { t.enabled = !t.enabled; e.currentTarget.classList.toggle('off', !t.enabled); } };
 
 $('joinBtn').onclick = async () => {
+  getCtx();
   const name = $('nameIn').value.trim() || 'Guest ' + Math.floor(Math.random() * 900 + 100);
   room = $('roomIn').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
   if (!room) return $('err').textContent = 'Enter a room code.';
@@ -177,6 +180,7 @@ $('joinBtn').onclick = async () => {
     await setPersistence(auth, browserSessionPersistence);   // unique identity per tab
     const cred = await signInAnonymously(auth);
     me = { uid: cred.user.uid, name };
+    await setupAudio();
     await enter();
   } catch (e) {
     console.error(e);
@@ -328,7 +332,7 @@ function toast(t) {
 function watch(id, stream) {
   if (speakers[id] || !stream || !stream.getAudioTracks().length) return;
   try {
-    actx = actx || new AudioContext(); const a = actx.createAnalyser(); a.fftSize = 256;
+    getCtx(); const a = actx.createAnalyser(); a.fftSize = 256;
     actx.createMediaStreamSource(stream).connect(a); speakers[id] = a;
   } catch {}
 }
@@ -340,6 +344,57 @@ setInterval(() => {
     $('t-' + id)?.classList.toggle('speaking', lvl > 18 && roster[id]?.audio !== false);
   }
 }, 250);
+
+/* ================= Noise cancellation pipeline =================
+   Mic -> browser NS/AEC/AGC -> 90 Hz high-pass (rumble/hum) -> adaptive noise gate
+   (AudioWorklet) -> compressor (tames keyboard clacks / bangs) -> sent track        */
+let rawTrack = null, gateNode = null, noiseMode = 1;
+const MODES = [{ n: 'Off', m: 0 }, { n: 'Standard', m: 2.5 }, { n: 'Strong', m: 4 }];
+const GATE = `class G extends AudioWorkletProcessor{
+constructor(){super();this.g=1;this.f=0.004;this.h=0;this.m=2.5;this.port.onmessage=e=>{this.m=e.data}}
+process(i,o){const x=i[0][0],y=o[0];if(!x)return true;
+let s=0;for(let k=0;k<x.length;k++)s+=x[k]*x[k];const r=Math.sqrt(s/x.length);
+const t=Math.min(0.04,Math.max(0.006,this.f*this.m));
+if(r<this.f)this.f=this.f*0.9+r*0.1;else if(r<=t)this.f=this.f*0.999+r*0.001;else this.f=Math.min(0.015,this.f*0.9999+r*0.0001);
+if(this.m===0){this.g=1}else{
+if(r>t)this.h=Math.round(sampleRate*0.3/128);
+const open=r>t||this.h-- >0;
+this.g+=((open?1:0.03)-this.g)*(open?0.4:0.015)}
+for(const c of y)for(let k=0;k<x.length;k++)c[k]=x[k]*this.g;return true}}
+registerProcessor('gate',G)`;
+function getCtx() {
+  actx = actx || new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+async function setupAudio() {
+  const raw = track('audio'); if (!raw) return;
+  try {
+    const c = getCtx(); rawTrack = raw;
+    const src = c.createMediaStreamSource(new MediaStream([raw]));
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
+    const comp = c.createDynamicsCompressor();
+    comp.threshold.value = -28; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
+    const dest = c.createMediaStreamDestination();
+    src.connect(hp); let last = hp;
+    try {
+      await c.audioWorklet.addModule(URL.createObjectURL(new Blob([GATE], { type: 'application/javascript' })));
+      gateNode = new AudioWorkletNode(c, 'gate', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] });
+      gateNode.port.postMessage(MODES[noiseMode].m); hp.connect(gateNode); last = gateNode;
+    } catch (e) { console.warn('Adaptive gate unavailable, using filters only', e); }
+    last.connect(comp); comp.connect(dest);
+    const proc = dest.stream.getAudioTracks()[0];
+    proc.enabled = raw.enabled; raw.enabled = true;          // keep lobby mute state; mute now acts on the processed track
+    localStream.removeTrack(raw); localStream.addTrack(proc);
+  } catch (e) { console.warn('Audio pipeline failed, using raw mic', e); }
+}
+$('noiseBtn').onclick = () => {
+  if (!gateNode) return toast('Advanced noise gate is not supported in this browser');
+  noiseMode = (noiseMode + 1) % MODES.length; gateNode.port.postMessage(MODES[noiseMode].m);
+  $('noiseBtn').querySelector('span').textContent = 'Noise: ' + MODES[noiseMode].n;
+  $('noiseBtn').classList.toggle('act', noiseMode > 0);
+  toast('Noise cancellation: ' + MODES[noiseMode].n);
+};
 
 /* ================= Controls ================= */
 function upd(p) { Object.assign(roster[me.uid], p); paint(me.uid); updateDoc(myRef, p).catch(() => {}); syncButtons(); }
@@ -411,7 +466,7 @@ $('copyBtn').onclick = () => {
 async function leave() {
   unsubs.forEach(u => u()); Object.keys(peers).forEach(id => dropPeer(id, false));
   await deleteDoc(myRef).catch(() => {});
-  localStream.getTracks().forEach(t => t.stop()); screenTrack?.stop(); location.reload();
+  localStream.getTracks().forEach(t => t.stop()); screenTrack?.stop(); rawTrack?.stop(); location.reload();
 }
 $('leaveBtn').onclick = leave;
 addEventListener('beforeunload', () => { if (myRef) deleteDoc(myRef); });
