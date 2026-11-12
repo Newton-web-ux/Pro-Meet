@@ -3,753 +3,308 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pro Meet</title>
+<title>Pro Meet · Dashboard</title>
+<script>if (location.hash.length > 1) location.replace('meeting.html' + location.hash);</script>
 <style>
-:root{--bg:#0f1217;--panel:#171c24;--line:#262d38;--txt:#e8ecf2;--mut:#8b96a8;--acc:#3b82f6;--red:#ef4444;--grn:#22c55e}
+:root{--bg:#0f1217;--panel:#171c24;--line:#262d38;--txt:#e8ecf2;--mut:#8b96a8;--acc:#3b82f6;--red:#ef4444;--grn:#22c55e;--amb:#f59e0b}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden}
-.hidden{display:none!important}
+body{font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
 button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
-input{font:inherit;color:var(--txt);background:#0b0e13;border:1px solid var(--line);border-radius:10px;padding:12px 14px;outline:none;width:100%}
-input:focus{border-color:var(--acc)}
-svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-
-/* Lobby */
-#lobby{height:100%;display:flex;align-items:center;justify-content:center;gap:40px;padding:20px;flex-wrap:wrap;overflow:auto}
-.pv{width:min(560px,100%);position:relative}
-#preview{width:100%;aspect-ratio:16/10;background:#000;border-radius:16px;object-fit:cover;transform:scaleX(-1)}
-.pvc{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:center;gap:12px}
-.form{width:min(380px,100%);display:flex;flex-direction:column;gap:14px}
-.form h1{font-size:28px}.form p{color:var(--mut);font-size:14px;line-height:1.5}
-.btn{background:var(--acc);color:#fff;padding:13px;border-radius:10px;font-weight:600}
-.btn:hover{filter:brightness(1.1)}.btn:disabled{opacity:.5}
-.ghost{color:var(--acc);font-size:14px;text-align:left}
-#err{color:#ff7b7b;font-size:13px;min-height:18px}
-.round{width:46px;height:46px;border-radius:50%;background:rgba(30,36,46,.9);display:flex;align-items:center;justify-content:center}
-.round.off{background:var(--red)}
-
-/* Meeting */
-#meeting{height:100%;display:flex;flex-direction:column}
-header{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-bottom:1px solid var(--line);font-size:14px;gap:10px}
-header .m{color:var(--mut)}header b{color:var(--txt)}
-#main{flex:1;display:flex;min-height:0}
-#grid{flex:1;display:grid;gap:10px;padding:10px;min-width:0;overflow:auto}
-.tile{position:relative;background:#000;border-radius:14px;overflow:hidden;min-height:110px;border:2px solid transparent;transition:border-color .15s}
-.tile.speaking{border-color:var(--grn)}
-.tile video{width:100%;height:100%;object-fit:cover;display:block}
-.tile.me video{transform:scaleX(-1)}.tile.share video{object-fit:contain}
-.av{position:absolute;inset:0;background:#1d2430;display:none;align-items:center;justify-content:center}
-.av span{width:84px;height:84px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:600}
-.tile.novid .av{display:flex}
-.lbl{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.65);padding:4px 10px;border-radius:8px;font-size:13px;display:flex;gap:6px;align-items:center;max-width:80%}
-.lbl .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tile.muted .mi::before{content:'🔇'}.hd{display:none}.tile.hand .hd{display:inline}
-.ed{display:none;font-style:normal;font-size:11px;color:#fbbf24;white-space:nowrap}.tile.educk .ed{display:inline}
-.pin{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border-radius:8px;padding:4px 7px;font-size:13px;opacity:0}
-.tile:hover .pin{opacity:1}
-#grid.spot{display:flex;flex-wrap:wrap;align-content:flex-start}
-#grid.spot .tile{flex:0 0 200px;height:120px}
-#grid.spot .tile.pinned{flex:1 1 100%;height:calc(100vh - 290px);order:-1}
-#side{width:330px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}
-.tabs{display:flex;border-bottom:1px solid var(--line)}
-.tabs button{flex:1;padding:12px;color:var(--mut);font-size:14px}
-.tabs button.on{color:var(--txt);border-bottom:2px solid var(--acc)}
-.pane{flex:1;display:flex;flex-direction:column;min-height:0}
-#msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:88%;background:#222a36;padding:8px 12px;border-radius:12px;font-size:14px;word-break:break-word}
-.msg.mine{align-self:flex-end;background:#1e3a68}
-.msg small{display:block;color:var(--mut);font-size:11px;margin-bottom:2px}
-#cf{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
-#cf input{padding:10px 12px}#cf button{background:var(--acc);color:#fff;padding:0 16px;border-radius:10px}
-#plist{list-style:none;overflow:auto;padding:8px}
-#plist li{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;font-size:14px}
-#plist li:hover{background:#1f2631}
-.pav{width:32px;height:32px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
-#plist .st{margin-left:auto;font-size:13px}#plist span:nth-child(2){flex:1;overflow:hidden;text-overflow:ellipsis}
-#plist .pm{font-size:11px;color:var(--acc);padding:3px 8px;border:1px solid var(--line);border-radius:8px;white-space:nowrap}
-#bar{display:flex;justify-content:center;gap:10px;padding:12px;border-top:1px solid var(--line);flex-wrap:wrap}
-.cb{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:68px;padding:8px 10px;border-radius:12px;font-size:11px;color:var(--mut);position:relative}
-.cb:hover{background:#1f2631;color:var(--txt)}
-.cb.off svg,.cb.off{color:var(--red)}.cb.act{color:var(--acc)}
-.cb.leave{color:#fff;background:var(--red)}.cb.leave:hover{filter:brightness(1.1);background:var(--red)}
-.dot{position:absolute;top:4px;right:16px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;padding:1px 5px}
-#toasts{position:fixed;top:60px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:9}
-.toast{background:#222a36;border:1px solid var(--line);padding:8px 16px;border-radius:10px;font-size:13px}
-.rc{display:none;right:44px}.tile.share.remote .rc{display:block}
-#ctlBar{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:var(--acc);color:#fff;padding:8px 14px;border-radius:12px;font-size:13px;display:flex;gap:10px;align-items:center;z-index:8;box-shadow:0 4px 20px rgba(0,0,0,.4)}
-#ctlBar.req{background:#b45309}#ctlBar button{background:rgba(255,255,255,.22);padding:4px 12px;border-radius:8px}
-.tile.ctrl{border-color:var(--acc);cursor:crosshair}
-.rcur{position:absolute;pointer-events:none;z-index:4;transition:left .05s linear,top .05s linear}
-.rcur svg{width:22px;height:22px;fill:#f59e0b;stroke:#000;stroke-width:1}
-.rcur b{position:absolute;left:16px;top:18px;background:#f59e0b;color:#000;font-size:11px;padding:1px 6px;border-radius:6px;white-space:nowrap}
-.rip{position:absolute;width:30px;height:30px;margin:-15px;border-radius:50%;border:3px solid #f59e0b;pointer-events:none;animation:rip .5s forwards}
-@keyframes rip{to{transform:scale(2.2);opacity:0}}
-@media(max-width:760px){#side{position:fixed;inset:0;width:100%;z-index:5}.cb{min-width:54px}#grid.spot .tile.pinned{height:50vh}}
+input,select{font:inherit;color:var(--txt);background:#0b0e13;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--acc)}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(15,18,23,.92);backdrop-filter:blur(8px);z-index:5}
+.logo{font-weight:700;font-size:18px;display:flex;gap:8px;align-items:center}.logo i{width:28px;height:28px;border-radius:8px;background:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-style:normal}
+.conn{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut);display:inline-block}.dot.on{background:var(--grn);box-shadow:0 0 0 3px rgba(34,197,94,.2)}
+main{max-width:1180px;margin:0 auto;padding:26px 28px 60px}
+h1{font-size:26px;margin-bottom:4px}.sub{color:var(--mut);font-size:14px;margin-bottom:22px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+.stat b{font-size:30px;display:block;margin-top:4px}.stat span{color:var(--mut);font-size:13px}
+.cols{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+.card h2{font-size:15px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.card h2 small{color:var(--mut);font-weight:400;font-size:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:130px}
+.btn{background:var(--acc);color:#fff;padding:11px 16px;border-radius:10px;font-weight:600;white-space:nowrap}.btn:hover{filter:brightness(1.1)}
+.btn.alt{background:#222a36;color:var(--txt)}
+.ico{background:#222a36;border-radius:8px;padding:6px 9px;font-size:13px}.ico:hover{background:#2c3544}
+label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+.item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+.item:last-child{margin-bottom:0}.grow{flex:1;min-width:0}
+.t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.m{color:var(--mut);font-size:12px;margin-top:2px}
+.pill{font-size:11px;padding:2px 8px;border-radius:99px;background:#222a36;color:var(--mut);white-space:nowrap}
+.pill.live{background:rgba(34,197,94,.15);color:var(--grn)}.pill.soon{background:rgba(245,158,11,.15);color:var(--amb)}
+.avs{display:flex}.avs span{width:26px;height:26px;border-radius:50%;background:var(--acc);border:2px solid var(--panel);margin-left:-8px;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}.avs span:first-child{margin-left:0}
+.empty{color:var(--mut);font-size:13px;text-align:center;padding:18px}
+.actions{display:flex;gap:6px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222a36;border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}#toast.show{opacity:1}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}main,header{padding-left:16px;padding-right:16px}}
 </style>
 </head>
 <body>
+<header>
+  <div class="logo"><i>📹</i> Pro Meet</div>
+  <div style="display:flex;align-items:center;gap:14px"><div class="conn"><span class="dot" id="cdot"></span><span id="ctxt">Connecting…</span></div><button class="btn alt" id="authBtn" style="padding:8px 14px">Sign in with Google</button></div>
+</header>
+<main>
+  <h1 id="hello">Welcome</h1>
+  <p class="sub" id="sub">Start, schedule and track your meetings. Live status updates in real time.</p>
 
-<!-- LOBBY -->
-<div id="lobby">
-  <div class="pv">
-    <video id="preview" autoplay muted playsinline></video>
-    <div class="pvc">
-      <button class="round" id="pMic" title="Microphone"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg></button>
-      <button class="round" id="pCam" title="Camera"><svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg></button>
+  <section class="stats">
+    <div class="card stat"><span>Live now</span><b id="sLive">0</b></div>
+    <div class="card stat"><span>People online</span><b id="sOn">0</b></div>
+    <div class="card stat"><span>Upcoming</span><b id="sUp">0</b></div>
+    <div class="card stat"><span>Joined this week</span><b id="sWeek">0</b></div>
+  </section>
+
+  <div class="cols">
+    <div class="stack">
+      <div class="card">
+        <h2>Quick start</h2>
+        <div class="row" style="margin-bottom:10px">
+          <div><label>Your name</label><input id="name" placeholder="Your name" maxlength="30"></div>
+          <div><label>Join with a code</label><input id="code" placeholder="e.g. abc-1x2y" maxlength="40"></div>
+        </div>
+        <div class="row"><button class="btn" id="startBtn">▶ Start instant meeting</button><button class="btn alt" id="joinBtn">Join meeting</button></div>
+      </div>
+
+      <div class="card">
+        <h2>My meeting rooms <small>live status</small></h2>
+        <div id="rooms"></div>
+      </div>
+
+      <div class="card">
+        <h2>Shared files <small id="fcount">Google Drive</small><button class="ico" id="refreshFiles" title="Refresh">↻</button></h2>
+        <div id="files"></div>
+      </div>
+
+      <div class="card">
+        <h2>Meetings joined <small>last 7 days</small></h2>
+        <div id="chart"></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <h2>Schedule a meeting</h2>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div><label>Title</label><input id="sTitle" placeholder="Weekly sync" maxlength="60"></div>
+          <div class="row"><div><label>Date &amp; time</label><input id="sWhen" type="datetime-local"></div>
+          <div><label>Duration</label><select id="sDur"><option value="15">15 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1.5 hours</option></select></div></div>
+          <button class="btn" id="schedBtn">Schedule</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Upcoming <small>this browser</small></h2>
+        <div id="upcoming"></div>
+      </div>
     </div>
   </div>
-  <div class="form">
-    <h1>Pro Meet</h1>
-    <p>Secure video meetings with chat, screen sharing and live participant sync powered by Firebase.</p>
-    <p>🎧 Tip: headphones give the cleanest audio. If another device is in the same room, Pro Meet detects it and silences the duplicate audio automatically.</p>
-    <input id="nameIn" placeholder="Your name" maxlength="30">
-    <input id="roomIn" placeholder="Room code" maxlength="40">
-    <button class="btn" id="joinBtn">Join meeting</button>
-    <button class="ghost" id="newBtn">Generate a new room code</button>
-    <div id="err"></div>
-  </div>
-</div>
-
-<!-- MEETING -->
-<div id="meeting" class="hidden">
-  <header>
-    <span>Room <b id="roomLbl"></b> <span class="m">· <span id="count">1</span> in call · <span id="timer">00:00</span></span></span>
-    <button class="ghost" id="copyBtn">Copy invite link</button>
-  </header>
-  <div id="main">
-    <div id="grid"></div>
-    <aside id="side" class="hidden">
-      <div class="tabs"><button id="tabChat" class="on">Chat</button><button id="tabPeople">People</button></div>
-      <div class="pane" id="paneChat">
-        <div id="msgs"></div>
-        <form id="cf"><input id="chatIn" placeholder="Message everyone…" autocomplete="off"><button>Send</button></form>
-      </div>
-      <div class="pane hidden" id="panePeople"><ul id="plist"></ul></div>
-    </aside>
-  </div>
-  <div id="bar">
-    <button class="cb" id="micBtn"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg><span>Mute</span></button>
-    <button class="cb" id="camBtn"><svg viewBox="0 0 24 24"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2"/></svg><span>Stop video</span></button>
-    <button class="cb act" id="noiseBtn" title="Cycle noise cancellation"><svg viewBox="0 0 24 24"><path d="M2 12h3l2-6 4 12 3-9 2 3h6"/></svg><span>Noise: Standard</span></button>
-    <button class="cb act" id="echoBtn" title="Stops echo: gates your mic while others speak through speakers, and silences any participant whose audio is picked up by your microphone (same room)."><svg viewBox="0 0 24 24"><path d="M3 10v4M7 6v12M11 3v18M15 7v10M19 10v4"/></svg><span>Echo guard: On</span></button>
-    <button class="cb" id="spkBtn" title="Mute incoming audio on this device"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><span>Speaker</span></button>
-    <button class="cb" id="shareBtn"><svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Share</span></button>
-    <button class="cb" id="handBtn"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/></svg><span>Raise hand</span></button>
-    <button class="cb" id="chatBtn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span><i class="dot hidden" id="unread">0</i></button>
-    <button class="cb" id="pplBtn"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span>People</span></button>
-    <button class="cb leave" id="leaveBtn"><svg viewBox="0 0 24 24"><path d="M10.7 13.3a16 16 0 0 0 2.6 2l1.3-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.7M22 2 2 22"/></svg><span>Leave</span></button>
-  </div>
-</div>
-<div id="ctlBar" class="hidden"></div>
-<div id="toasts"></div>
+</main>
+<div id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDocs, onSnapshot, query, where, orderBy }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA",
-  authDomain: "pro-meet-9e44e.firebaseapp.com",
-  projectId: "pro-meet-9e44e",
-  storageBucket: "pro-meet-9e44e.firebasestorage.app",
-  messagingSenderId: "360559567109",
-  appId: "1:360559567109:web:0f9bd0d407db2a5365d76c"
-};
-const app = initializeApp(firebaseConfig);
+import { SCRIPT_URL } from './meet-config.js';
+
+const app = initializeApp({
+  apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA", authDomain: "pro-meet-9e44e.firebaseapp.com", projectId: "pro-meet-9e44e",
+  storageBucket: "pro-meet-9e44e.firebasestorage.app", messagingSenderId: "360559567109", appId: "1:360559567109:web:0f9bd0d407db2a5365d76c"
+}, 'dash');
 const auth = getAuth(app), db = getFirestore(app);
 
-const $ = id => document.getElementById(id);
-const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
-const STALE = 45000;
-const AUDIO_C = {
-  echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true },
-  channelCount: { ideal: 1 }, sampleRate: { ideal: 48000 }, voiceIsolation: { ideal: true }
+/* ---------- state (kept in this browser) ---------- */
+const $ = id => document.getElementById(id), K = 'pm_dash';
+let S = { name: '', rooms: [], sched: [], hist: [] };
+try { S = { ...S, ...JSON.parse(localStorage.getItem(K) || '{}') }; } catch {}
+let uref = null;
+const save = () => {
+  try { localStorage.setItem('pm_name', S.name || ''); } catch {}
+  if (uref) setDoc(uref, S).catch(() => toast('Cloud save failed. Publish the new Firestore rules.'));
+  else try { localStorage.setItem(K, JSON.stringify(S)); } catch {}
 };
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const link = c => new URL('meeting.html#' + c, location.href).href;
+const newCode = () => Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6);
+const clean = s => s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+const ini = n => (n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+let tt; const toast = t => { const x = $('toast'); x.textContent = t; x.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => x.classList.remove('show'), 2600); };
+const fmtIn = ms => { const m = Math.max(1, Math.round(ms / 60000)); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h < 24 ? h + 'h ' + (m % 60) + 'm' : Math.floor(h / 24) + 'd ' + (h % 24) + 'h'; };
 
-let me, room, localStream, screenTrack = null, localView, actx, pinned = null, chatOpen = false, unread = 0, firstSnap = true;
-let partCol, sigCol, msgCol, myRef;
-const roster = {}, peers = {}, speakers = {}, unsubs = [];
-const echoMuted = {}, echoIgnore = {}, ech = {}, lv = {}, lastR = {}, lastNote = {};
-let chain = Promise.resolve();
-
-/* ================= Lobby ================= */
-const hashRoom = decodeURIComponent(location.hash.slice(1));
-if (hashRoom) $('roomIn').value = hashRoom;
-$('newBtn').onclick = () => $('roomIn').value = Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6);
-
-/* Make sure the browser's echo canceller is really running on the microphone */
-async function hardenMic(t) {
-  try {
-    const s = t.getSettings();
-    if (s.echoCancellation === false || s.noiseSuppression === false || s.autoGainControl === false)
-      await t.applyConstraints({ echoCancellation: true, noiseSuppression: true, autoGainControl: true });
-  } catch {}
-  return t.getSettings ? t.getSettings() : {};
+/* ---------- live room status (Firestore participants) ---------- */
+const subs = {}, live = {};
+const people = c => (live[c] || []).filter(p => Date.now() - p.seen < 45000);
+function syncSubs() {
+  const codes = new Set([...S.rooms.map(r => r.code), ...S.sched.map(s => s.code)]);
+  for (const c in subs) if (!codes.has(c)) { subs[c](); delete subs[c]; delete live[c]; }
+  if (!auth.currentUser) return;
+  codes.forEach(c => { if (!subs[c]) subs[c] = onSnapshot(collection(db, 'rooms', c, 'participants'), s => { live[c] = s.docs.map(d => d.data()); render(); }, () => {}); });
 }
-
-(async () => {
-  try { localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: AUDIO_C }); }
-  catch { try { localStream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_C }); } catch { localStream = new MediaStream(); $('err').textContent = 'No camera/mic found or permission denied. You can still join as a viewer.'; } }
-  $('preview').srcObject = localStream; localView = localStream;
-  const mt = localStream.getAudioTracks()[0];
-  if (mt) {
-    const as = await hardenMic(mt);
-    if (as.echoCancellation === false) $('err').textContent = 'Echo cancellation is unavailable on this microphone. Please use headphones.';
+/* ---------- Firebase sign-in + cloud sync (users/{uid}) ---------- */
+let unsubU = null, wasG = false;
+onAuthStateChanged(auth, u => {
+  const g = !!u && !u.isAnonymous;
+  $('cdot').classList.toggle('on', !!u);
+  $('ctxt').textContent = g ? (u.displayName || u.email) : u ? 'Guest · saved in this browser' : 'Connecting…';
+  $('authBtn').textContent = g ? 'Sign out' : 'Sign in with Google';
+  $('sub').textContent = g ? 'Your rooms and schedule sync to your Google account on every device.' : 'Sign in with Google to sync your rooms and schedule across devices.';
+  unsubU?.(); unsubU = null; uref = null;
+  if (!u) { if (wasG) { S = { name: '', rooms: [], sched: [], hist: [] }; try { localStorage.removeItem(K); } catch {} render(); } wasG = false; signInAnonymously(auth).catch(() => { $('ctxt').textContent = 'Live status unavailable (enable Anonymous sign-in)'; }); return; }
+  if (g) {
+    wasG = true; uref = doc(db, 'users', u.uid);
+    unsubU = onSnapshot(uref, snap => {
+      if (snap.metadata.hasPendingWrites) return;
+      if (snap.exists()) S = { name: '', rooms: [], sched: [], hist: [], ...snap.data() };
+      else { if (!S.name) S.name = u.displayName || ''; setDoc(uref, S).then(() => { try { localStorage.removeItem(K); } catch {} }).catch(() => {}); }
+      if (!S.name && u.displayName) S.name = u.displayName;
+      try { localStorage.setItem('pm_name', S.name || ''); } catch {}
+      mergeJoins(); syncSubs(); render(); reloadFiles();
+    }, () => toast('Could not load cloud data. Publish the new Firestore rules.'));
   }
-})();
-const track = k => localStream && localStream.getTracks().find(t => t.kind === k);
-$('pMic').onclick = e => { const t = track('audio'); if (t) { t.enabled = !t.enabled; e.currentTarget.classList.toggle('off', !t.enabled); } };
-$('pCam').onclick = e => { const t = track('video'); if (t) { t.enabled = !t.enabled; e.currentTarget.classList.toggle('off', !t.enabled); } };
-
-$('joinBtn').onclick = async () => {
-  getCtx();
-  const name = $('nameIn').value.trim() || 'Guest ' + Math.floor(Math.random() * 900 + 100);
-  room = $('roomIn').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
-  if (!room) return $('err').textContent = 'Enter a room code.';
-  $('joinBtn').disabled = true; $('err').textContent = '';
-  try {
-    await setPersistence(auth, browserSessionPersistence);   // unique identity per tab
-    const cred = await signInAnonymously(auth);
-    me = { uid: cred.user.uid, name };
-    await setupAudio();
-    await enter();
-    detectHeadphones();
-  } catch (e) {
-    console.error(e);
-    $('err').textContent = 'Could not join (' + (e.code || e.message) + '). Enable Anonymous Auth + Firestore and publish the rules.';
-    $('joinBtn').disabled = false;
-    $('lobby').classList.remove('hidden'); $('meeting').classList.add('hidden');
-  }
-};
-
-/* ================= Join the room ================= */
-async function enter() {
-  $('lobby').classList.add('hidden'); $('meeting').classList.remove('hidden');
-  $('roomLbl').textContent = room; location.hash = room;
-  partCol = collection(db, 'rooms', room, 'participants');
-  sigCol = collection(db, 'rooms', room, 'signals');
-  msgCol = collection(db, 'rooms', room, 'messages');
-  myRef = doc(partCol, me.uid);
-
-  const mine = { name: me.name, audio: !!track('audio')?.enabled, video: !!track('video')?.enabled, hand: false, sharing: false, joinedAt: Date.now(), seen: Date.now() };
-  roster[me.uid] = mine; paint(me.uid); watch(me.uid, localStream);
-
-  // drop stale signals from earlier sessions of this identity
-  const old = await getDocs(query(sigCol, where('to', '==', me.uid)));
-  await Promise.all(old.docs.map(d => deleteDoc(d.ref)));
-  await setDoc(myRef, mine);
-
-  // Roster sync
-  unsubs.push(onSnapshot(partCol, snap => {
-    snap.docChanges().forEach(ch => {
-      const id = ch.doc.id, d = ch.doc.data();
-      if (ch.type === 'removed') { if (id !== me.uid) { toast((roster[id]?.name || 'Someone') + ' left'); dropPeer(id, true); } return; }
-      if (id !== me.uid && Date.now() - d.seen > STALE) { deleteDoc(ch.doc.ref).catch(() => {}); return; }
-      if (id === me.uid) { return; }
-      const prev = roster[id];
-      if (prev && prev.joinedAt !== d.joinedAt) dropPeer(id, false);       // peer restarted
-      const isNew = !prev || prev.joinedAt !== d.joinedAt;
-      roster[id] = d;
-      if (isNew) { if (!firstSnap) toast(d.name + ' joined'); if (me.uid < id) initiate(id); }
-      paint(id);
-    });
-    firstSnap = false;
-  }, e => console.error(e)));
-
-  // Signaling inbox (offers / answers / ICE addressed to me)
-  unsubs.push(onSnapshot(query(sigCol, where('to', '==', me.uid)), snap => {
-    const items = snap.docChanges().filter(c => c.type === 'added').map(c => ({ ref: c.doc.ref, ...c.doc.data() })).sort((a, b) => a.ts - b.ts);
-    items.forEach(s => { deleteDoc(s.ref).catch(() => {}); chain = chain.then(() => onSignal(s)).catch(console.warn); });
-  }));
-
-  // Persistent chat
-  unsubs.push(onSnapshot(query(msgCol, orderBy('ts')), snap => {
-    snap.docChanges().forEach(c => { if (c.type === 'added') { const m = c.doc.data(); addMsg(m); if (m.uid !== me.uid && !(chatOpen && !$('paneChat').classList.contains('hidden'))) bump(); } });
-  }));
-
-  // Heartbeat + stale sweep + timer
-  const t0 = Date.now();
-  setInterval(() => {
-    updateDoc(myRef, { seen: Date.now() }).catch(() => {});
-    for (const id in roster) if (id !== me.uid && Date.now() - roster[id].seen > STALE) deleteDoc(doc(partCol, id)).catch(() => {});
-  }, 15000);
-  setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); $('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 1000);
-  syncButtons();
-}
-
-/* ================= WebRTC (mesh, Firestore signaling) ================= */
-const send = (to, type, data) => addDoc(sigCol, { from: me.uid, to, type, data: JSON.stringify(data), ts: Date.now() });
-
-function getPeer(id) {
-  if (peers[id]) return peers[id];
-  const pc = new RTCPeerConnection(ICE), p = peers[id] = { pc, q: [], stream: null };
-  const out = [track('audio'), screenTrack || track('video')].filter(Boolean);
-  out.forEach(t => pc.addTrack(t, localStream));
-  ['audio', 'video'].forEach(k => { if (!out.find(t => t.kind === k)) pc.addTransceiver(k, { direction: 'recvonly' }); });
-  pc.ondatachannel = e => dc(id, e.channel);
-  if (me.uid < id) dc(id, pc.createDataChannel('ctl'));
-  pc.onicecandidate = e => e.candidate && send(id, 'candidate', e.candidate.toJSON());
-  pc.ontrack = e => { p.stream = e.streams[0]; watch(id, p.stream); paint(id); };
-  pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed' && me.uid < id) initiate(id, true); };
-  return p;
-}
-async function initiate(id, restart) {
-  if (restart) dropPeer(id, false);
-  const { pc } = getPeer(id);
-  await pc.setLocalDescription(await pc.createOffer());
-  send(id, 'offer', pc.localDescription.toJSON());
-}
-async function flush(p) { for (const c of p.q.splice(0)) await p.pc.addIceCandidate(c).catch(() => {}); }
-async function onSignal(s) {
-  const data = JSON.parse(s.data);
-  if (s.type === 'offer' && peers[s.from]?.pc.remoteDescription) dropPeer(s.from, false);   // remote restarted
-  const p = getPeer(s.from), pc = p.pc;
-  if (s.type === 'offer') {
-    await pc.setRemoteDescription(data); await flush(p);
-    await pc.setLocalDescription(await pc.createAnswer());
-    send(s.from, 'answer', pc.localDescription.toJSON());
-  } else if (s.type === 'answer') { await pc.setRemoteDescription(data); await flush(p); }
-  else if (pc.remoteDescription) await pc.addIceCandidate(data).catch(() => {});
-  else p.q.push(data);
-}
-function dropPeer(id, full) {
-  if (id === ctrlBy || id === ctrlTarget || id === pending) endControl(false);
-  if (peers[id]) { peers[id].pc.close(); delete peers[id]; }
-  delete speakers[id];
-  if (full) {
-    delete roster[id]; delete echoMuted[id]; delete echoIgnore[id]; delete ech[id]; delete lv[id]; delete lastR[id]; delete lastNote[id];
-    $('t-' + id)?.remove(); if (pinned === id) pinned = null; renderPeople(); layout();
-  }
-}
-
-/* ================= UI: tiles / layout ================= */
-const initials = n => n.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-function tile(id) {
-  let t = $('t-' + id); if (t) return t;
-  t = document.createElement('div'); t.className = 'tile'; t.id = 't-' + id;
-  t.innerHTML = '<video autoplay playsinline></video><div class="av"><span></span></div><div class="lbl"><i class="mi"></i><span class="nm"></span><i class="hd">✋</i><i class="ed" title="Muted on this device to prevent echo">🔇 echo guard</i></div><button class="pin" title="Pin / unpin">📌</button><button class="pin rc" title="Request control of this screen">🖱</button>';
-  if (id === me.uid) t.querySelector('video').muted = true;
-  t.querySelector('.pin').onclick = () => { pinned = pinned === id ? null : id; layout(); };
-  t.querySelector('.rc').onclick = () => requestControl(id);
-  $('grid').appendChild(t); return t;
-}
-function paint(id) {
-  const r = roster[id]; if (!r) return;
-  const t = tile(id), self = id === me.uid;
-  t.querySelector('.nm').textContent = r.name + (self ? ' (You)' : '');
-  t.querySelector('.av span').textContent = initials(r.name);
-  t.classList.toggle('novid', !r.video && !r.sharing);
-  t.classList.toggle('muted', !r.audio); t.classList.toggle('hand', !!r.hand);
-  t.classList.toggle('share', !!r.sharing); t.classList.toggle('me', self && !r.sharing); t.classList.toggle('remote', !self);
-  const v = t.querySelector('video'), s = self ? localView : peers[id]?.stream;
-  v.muted = self || !spkOn || !!echoMuted[id];
-  if (s && v.srcObject !== s) v.srcObject = s;
-  renderPeople(); layout();
-}
-function applyPlayout(id) {
-  if (!me || id === me.uid) return;
-  const v = $('t-' + id)?.querySelector('video'); if (!v) return;
-  v.muted = !spkOn || !!echoMuted[id];
-}
-function layout() {
-  const g = $('grid'), n = Object.keys(roster).length, spot = pinned && roster[pinned];
-  $('count').textContent = n; g.classList.toggle('spot', !!spot);
-  for (const id in roster) $('t-' + id)?.classList.toggle('pinned', id === pinned);
-  if (spot) { g.style.gridTemplateColumns = g.style.gridTemplateRows = ''; return; }
-  const c = innerWidth < 760 ? (n > 2 ? 2 : 1) : n <= 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
-  g.style.gridTemplateColumns = `repeat(${c},1fr)`; g.style.gridTemplateRows = `repeat(${Math.ceil(n / c)},1fr)`;
-}
-addEventListener('resize', () => me && layout());
-function renderPeople() {
-  const ul = $('plist'); ul.innerHTML = '';
-  Object.entries(roster).sort((a, b) => a[1].joinedAt - b[1].joinedAt).forEach(([id, r]) => {
-    const li = document.createElement('li'), av = document.createElement('div'), nm = document.createElement('span'), st = document.createElement('span');
-    av.className = 'pav'; av.textContent = initials(r.name); nm.textContent = r.name + (id === me.uid ? ' (You)' : '');
-    st.className = 'st'; st.textContent = (r.hand ? '✋ ' : '') + (r.sharing ? '🖥 ' : '') + (r.audio ? '🎤' : '🔇') + (r.video ? ' 📷' : ' 🚫');
-    li.append(av, nm, st);
-    if (id !== me.uid && (echoMuted[id] || echoIgnore[id])) {
-      const b = document.createElement('button'); b.className = 'pm';
-      b.textContent = echoIgnore[id] ? 'Echo guard: off' : 'Echo-muted · allow';
-      b.title = echoIgnore[id] ? 'Let Pro Meet silence this participant again when echo is detected' : 'Always play this participant, even if echo is detected';
-      b.onclick = () => { echoIgnore[id] = !echoIgnore[id]; if (echoIgnore[id]) { echoMuted[id] = false; $('t-' + id)?.classList.remove('educk'); applyPlayout(id); } renderPeople(); };
-      li.append(b);
-    }
-    ul.append(li);
-  });
-}
-function toast(t) {
-  const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; $('toasts').append(d); setTimeout(() => d.remove(), 3500);
-}
-
-/* ================= Level analysis (speaking highlight + echo detection) ================= */
-const HOP = 25;            // ms between level samples
-const WIN = 100;           // analysis window = 2.5 s
-const RING = 200;          // ring length = 5 s
-const fbuf = new Float32Array(2048);
-lv.mic = new Float32Array(RING);
-let tickN = 0, lastMicActive = -1e9, micAn = null;
-let echoGuard = true, headphones = false, ducked = false, duckUntil = 0, spkOn = true;
-
-function watch(id, stream) {
-  if (speakers[id] || !stream || !stream.getAudioTracks().length) return;
-  try {
-    getCtx(); const a = actx.createAnalyser(); a.fftSize = 512;
-    actx.createMediaStreamSource(stream).connect(a); speakers[id] = a;
-  } catch {}
-}
-function rms(an) {
-  const n = an.fftSize; an.getFloatTimeDomainData(fbuf);
-  let s = 0; for (let i = 0; i < n; i++) s += fbuf[i] * fbuf[i];
-  return Math.sqrt(s / n);
-}
-
-/* Best Pearson correlation between mic envelope A[i] and a participant's envelope B[i+k], k in [k0,k1] */
-function bestCorr(A, B, k0, k1) {
-  let top = -1;
-  for (let k = k0; k <= k1; k++) {
-    const i0 = Math.max(0, -k), i1 = Math.min(WIN - 1, WIN - 1 - k);
-    let n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
-    for (let i = i0; i <= i1; i++) { const x = A[i], y = B[i + k]; n++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; }
-    const vx = sxx - sx * sx / n, vy = syy - sy * sy / n;
-    if (vx < 1e-6 || vy < 1e-6) continue;
-    const c = (sxy - sx * sy / n) / Math.sqrt(vx * vy);
-    if (c > top) top = c;
-  }
-  return top;
-}
-/* Does my microphone hear what this participant is sending (my voice coming back, or them speaking in my room)?
-   The mic leads their stream by the network delay (positive lag). Speaker leakage would show up at negative lag
-   and is handled by the mic gate instead. */
-function echoScore(id) {
-  const q = lv[id], m = lv.mic;
-  if (!q || tickN < WIN + 8) return 0;
-  const A = new Float32Array(WIN), B = new Float32Array(WIN); let am = 0, at = 0;
-  for (let i = 0; i < WIN; i++) {
-    const s = (tickN - WIN + i) % RING, a = m[s], b = q[s];
-    if (a > 0.015) am++; if (b > 0.015) at++;
-    A[i] = Math.log(a + 0.002); B[i] = Math.log(b + 0.002);
-  }
-  if (am < 15 || at < 15) return 0;
-  const pos = bestCorr(A, B, 3, 40), neg = bestCorr(A, B, -8, -1);
-  return pos > neg + 0.1 ? pos : 0;
-}
-function analyse(now) {
-  for (const id in lv) {
-    if (id === 'mic') continue;
-    const e = ech[id] || (ech[id] = { streak: 0, hit: -1e9 });
-    if (echoScore(id) > 0.6) { if (++e.streak >= 3) e.hit = now; }
-    else e.streak = Math.max(0, e.streak - 1);
-  }
-}
-function notifyEcho(id) {
-  const n = performance.now(); if (n - (lastNote[id] || 0) < 60000) return; lastNote[id] = n;
-  toast('Echo detected with ' + (roster[id]?.name || 'a participant') + ': muting their audio on this device while you speak');
-}
-function uiTick(now) {
-  let far = 0, changed = false;
-  for (const id in speakers) {
-    const r = lastR[id] || 0, rs = roster[id];
-    $('t-' + id)?.classList.toggle('speaking', r > 0.012 && rs?.audio !== false);
-    if (id === me.uid) continue;
-    const e = ech[id];
-    const m = !!(echoGuard && !echoIgnore[id] && e && now - e.hit < 3000 && now - lastMicActive < 500);
-    if (m !== !!echoMuted[id]) {
-      echoMuted[id] = m; changed = true; applyPlayout(id);
-      $('t-' + id)?.classList.toggle('educk', m); if (m) notifyEcho(id);
-    }
-    if (!echoMuted[id] && spkOn && rs?.audio !== false) far = Math.max(far, r);
-  }
-  if (changed) renderPeople();
-  // Speaker leakage guard: while someone is audible on my speakers, make the mic gate stricter
-  const duckOn = echoGuard && !headphones && spkOn;
-  if (duckOn && far > 0.008) duckUntil = now + 400;
-  const d = duckOn && now < duckUntil;
-  if (d !== ducked) { ducked = d; gateNode?.port.postMessage({ duck: d }); }
-}
-function sample() {
-  if (!me) return;
-  const i = tickN % RING, now = performance.now();
-  const mr = micAn ? rms(micAn) : 0; lv.mic[i] = mr; if (mr > 0.015) lastMicActive = now;
-  for (const id in speakers) {
-    const v = rms(speakers[id]); lastR[id] = v;
-    if (id !== me.uid) (lv[id] || (lv[id] = new Float32Array(RING)))[i] = v;
-  }
-  for (const id in lv) if (id !== 'mic' && !speakers[id]) delete lv[id];
-  tickN++;
-  if (tickN % 4 === 0) uiTick(now);
-  if (tickN % 8 === 0) analyse(now);
-}
-
-/* ================= Noise cancellation pipeline =================
-   Mic -> browser NS/AEC/AGC -> 90 Hz high-pass (rumble/hum) -> adaptive noise gate
-   (AudioWorklet) -> compressor (tames keyboard clacks / bangs) -> sent track
-   A pre-gate analyser feeds the same-room echo detector.                           */
-let rawTrack = null, gateNode = null, noiseMode = 1;
-const MODES = [{ n: 'Off', m: 0 }, { n: 'Standard', m: 2.5 }, { n: 'Strong', m: 4 }];
-const GATE = `class G extends AudioWorkletProcessor{
-constructor(){super();this.g=1;this.f=0.004;this.h=0;this.m=2.5;this.k=0;
-this.port.onmessage=e=>{const d=e.data;if(typeof d==='number')this.m=d;else if(d&&'duck' in d)this.k=d.duck?1:0}}
-process(i,o){const x=i[0][0],y=o[0];if(!x)return true;
-let s=0;for(let n=0;n<x.length;n++)s+=x[n]*x[n];const r=Math.sqrt(s/x.length);
-let t=Math.min(0.04,Math.max(0.006,this.f*this.m));
-if(this.k)t=Math.max(t*2.5,0.035);
-else{if(r<this.f)this.f=this.f*0.9+r*0.1;else if(r<=t)this.f=this.f*0.999+r*0.001;else this.f=Math.min(0.015,this.f*0.9999+r*0.0001)}
-if(this.m===0&&!this.k){this.g=1}else{
-if(r>t)this.h=Math.round(sampleRate*(this.k?0.12:0.3)/128);
-const open=r>t||this.h-- >0;
-this.g+=((open?1:0.02)-this.g)*(open?0.5:(this.k?0.08:0.015))}
-for(const c of y)for(let n=0;n<x.length;n++)c[n]=x[n]*this.g;return true}}
-registerProcessor('gate',G)`;
-function getCtx() {
-  actx = actx || new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-  if (actx.state === 'suspended') actx.resume();
-  return actx;
-}
-['click', 'keydown', 'touchstart', 'visibilitychange'].forEach(ev => addEventListener(ev, () => { if (actx && actx.state === 'suspended') actx.resume(); }, { passive: true }));
-async function setupAudio() {
-  const raw = track('audio'); if (!raw) return;
-  try {
-    const c = getCtx(); rawTrack = raw;
-    const src = c.createMediaStreamSource(new MediaStream([raw]));
-    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 90;
-    const comp = c.createDynamicsCompressor();
-    comp.threshold.value = -28; comp.ratio.value = 4; comp.attack.value = 0.005; comp.release.value = 0.25;
-    const dest = c.createMediaStreamDestination();
-    src.connect(hp);
-    micAn = c.createAnalyser(); micAn.fftSize = 512; hp.connect(micAn);    // pre-gate tap for echo detection
-    let last = hp;
-    try {
-      await c.audioWorklet.addModule(URL.createObjectURL(new Blob([GATE], { type: 'application/javascript' })));
-      gateNode = new AudioWorkletNode(c, 'gate', { channelCount: 1, channelCountMode: 'explicit', outputChannelCount: [1] });
-      gateNode.port.postMessage(MODES[noiseMode].m); hp.connect(gateNode); last = gateNode;
-    } catch (e) { console.warn('Adaptive gate unavailable, using filters only', e); }
-    last.connect(comp); comp.connect(dest);
-    const proc = dest.stream.getAudioTracks()[0];
-    try { proc.contentHint = 'speech'; } catch {}
-    proc.enabled = raw.enabled; raw.enabled = true;          // keep lobby mute state; mute now acts on the processed track
-    localStream.removeTrack(raw); localStream.addTrack(proc);
-  } catch (e) { console.warn('Audio pipeline failed, using raw mic', e); }
-}
-$('noiseBtn').onclick = () => {
-  if (!gateNode) return toast('Advanced noise gate is not supported in this browser');
-  noiseMode = (noiseMode + 1) % MODES.length; gateNode.port.postMessage(MODES[noiseMode].m);
-  $('noiseBtn').querySelector('span').textContent = 'Noise: ' + MODES[noiseMode].n;
-  $('noiseBtn').classList.toggle('act', noiseMode > 0);
-  toast('Noise cancellation: ' + MODES[noiseMode].n);
-};
-function setEcho() { $('echoBtn').classList.toggle('act', echoGuard); $('echoBtn').querySelector('span').textContent = 'Echo guard: ' + (echoGuard ? 'On' : 'Off'); }
-$('echoBtn').onclick = () => {
-  echoGuard = !echoGuard;
-  if (!echoGuard && ducked) { ducked = false; gateNode?.port.postMessage({ duck: false }); }
-  setEcho(); toast('Echo guard ' + (echoGuard ? 'on' : 'off'));
-};
-function applySpk() { for (const id in roster) applyPlayout(id); }
-$('spkBtn').onclick = () => {
-  spkOn = !spkOn; applySpk();
-  $('spkBtn').classList.toggle('off', !spkOn); $('spkBtn').querySelector('span').textContent = spkOn ? 'Speaker' : 'Speaker off';
-  toast(spkOn ? 'Incoming audio on' : 'Incoming audio muted on this device');
-};
-async function detectHeadphones() {
-  try {
-    const outs = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === 'audiooutput');
-    const d = outs.find(x => x.deviceId === 'default') || outs[0];
-    if (!d || !d.label) return;
-    const hpNow = /headphone|headset|earphone|earbud|airpod|buds/i.test(d.label);
-    if (hpNow !== headphones) {
-      headphones = hpNow;
-      toast(hpNow ? 'Headphones detected: speaker-echo gate paused' : 'Speakers in use: echo guard active');
-    }
-  } catch {}
-}
-navigator.mediaDevices?.addEventListener?.('devicechange', () => { if (me) detectHeadphones(); });
-
-/* ================= Controls ================= */
-function upd(p) { Object.assign(roster[me.uid], p); paint(me.uid); updateDoc(myRef, p).catch(() => {}); syncButtons(); }
-function syncButtons() {
-  const r = roster[me.uid]; if (!r) return;
-  const set = (id, off, label, act) => { const b = $(id); b.classList.toggle('off', !!off); b.classList.toggle('act', !!act); b.querySelector('span').textContent = label; };
-  set('micBtn', !r.audio, r.audio ? 'Mute' : 'Unmute');
-  set('camBtn', !r.video, r.video ? 'Stop video' : 'Start video');
-  set('shareBtn', false, r.sharing ? 'Stop share' : 'Share', r.sharing);
-  set('handBtn', false, r.hand ? 'Lower hand' : 'Raise hand', r.hand);
-}
-const toggleMic = () => { const t = track('audio'); if (!t) return toast('No microphone available'); t.enabled = !t.enabled; upd({ audio: t.enabled }); };
-const toggleCam = () => { const t = track('video'); if (!t) return toast('No camera available'); t.enabled = !t.enabled; upd({ video: t.enabled }); };
-$('micBtn').onclick = toggleMic; $('camBtn').onclick = toggleCam;
-$('handBtn').onclick = () => upd({ hand: !roster[me.uid].hand });
-
-function swapVideo(t) {
-  Object.values(peers).forEach(({ pc }) => {
-    const s = pc.getSenders().find(s => s.track?.kind === 'video' || (!s.track && pc.getTransceivers().find(x => x.sender === s && x.receiver.track.kind === 'video')));
-    if (s && t) s.replaceTrack(t).catch(() => {});
-  });
-}
-$('shareBtn').onclick = async () => {
-  if (screenTrack) return stopShare();
-  if (!track('video')) return toast('Screen sharing needs camera permission to be granted');
-  try {
-    const ds = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 20 } });
-    screenTrack = ds.getVideoTracks()[0]; screenTrack.onended = stopShare;
-    swapVideo(screenTrack); localView = new MediaStream([screenTrack]); upd({ sharing: true });
-  } catch {}
-};
-function stopShare() {
-  if (!screenTrack) return;
-  endControl(true); agent?.close(); agent = null; agentAsked = false;
-  screenTrack.stop(); screenTrack = null; swapVideo(track('video'));
-  localView = localStream; $('t-' + me.uid).querySelector('video').srcObject = localStream; upd({ sharing: false });
-}
-
-/* ================= Remote control of a shared screen =================
-   Request -> sharer approves -> controller's mouse/keyboard stream over a WebRTC data channel.
-   Browsers cannot move the OS cursor, so the sharer sees a labelled remote pointer + click ripples;
-   with the optional local agent (agent.js) the events drive the real mouse and keyboard.        */
-let ctrlTarget = null, ctrlBy = null, pending = null, agent = null, agentAsked = false, offCtl = null, cur = null;
-const sendCtl = (id, m) => { const d = peers[id]?.dc; if (d && d.readyState === 'open') { d.send(JSON.stringify(m)); return true; } return false; };
-function dc(id, ch) {
-  if (peers[id]) peers[id].dc = ch;
-  ch.onmessage = e => onCtl(id, JSON.parse(e.data));
-  ch.onclose = () => { if (id === ctrlBy || id === ctrlTarget) endControl(false); };
-}
-function showBar(text, btns, cls) {
-  const b = $('ctlBar'); b.className = cls || ''; b.textContent = text;
-  btns.forEach(([l, f]) => { const x = document.createElement('button'); x.textContent = l; x.onclick = f; b.append(x); });
-}
-const hideBar = () => { $('ctlBar').className = 'hidden'; };
-
-function requestControl(id) {
-  if (ctrlTarget || pending) return toast('A control request is already active');
-  if (!roster[id]?.sharing) return;
-  if (!sendCtl(id, { t: 'req' })) return toast('Connection not ready, try again in a moment');
-  pending = id; toast('Control requested from ' + roster[id].name);
-}
-function onCtl(from, m) {
-  const name = roster[from]?.name || 'Someone';
-  if (m.t === 'req') {
-    if (ctrlBy || !screenTrack) return sendCtl(from, { t: 'deny', why: ctrlBy ? 'busy' : 'not sharing' });
-    showBar(name + ' requests control of your screen', [['Allow', () => grant(from)], ['Deny', () => { sendCtl(from, { t: 'deny' }); hideBar(); }]], 'req');
-  } else if (m.t === 'grant') { if (pending === from) { pending = null; startCtrl(from); } }
-  else if (m.t === 'deny') { if (pending === from) { pending = null; toast(name + ' declined' + (m.why ? ' (' + m.why + ')' : '')); } }
-  else if (m.t === 'revoke') { if (from === ctrlBy || from === ctrlTarget) { toast('Control ended'); endControl(false); } }
-  else if (ctrlBy === from) applyInput(m);
-}
-function grant(from) {
-  ctrlBy = from; sendCtl(from, { t: 'grant' });
-  showBar((roster[from]?.name || 'Someone') + ' is controlling your screen', [['Stop control', () => endControl(true)]]);
-  connectAgent();
-}
-function endControl(notify) {
-  const other = ctrlBy || ctrlTarget; if (notify && other) sendCtl(other, { t: 'revoke' });
-  offCtl?.(); offCtl = null; ctrlBy = ctrlTarget = pending = null; hideBar();
-  $('t-' + me.uid)?.querySelectorAll('.rcur,.rip').forEach(n => n.remove()); cur = null;
-}
-
-/* Controller side: capture input on the remote tile */
-function startCtrl(id) {
-  ctrlTarget = id; const t = $('t-' + id), v = t.querySelector('video'); t.classList.add('ctrl');
-  showBar('Controlling ' + roster[id].name + "'s screen", [['Release', () => endControl(true)]]);
-  let last = 0;
-  const pos = e => {
-    const r = v.getBoundingClientRect(), vw = v.videoWidth, vh = v.videoHeight; if (!vw) return null;
-    const k = Math.min(r.width / vw, r.height / vh), cw = vw * k, ch = vh * k;
-    const x = (e.clientX - r.left - (r.width - cw) / 2) / cw, y = (e.clientY - r.top - (r.height - ch) / 2) / ch;
-    return x < 0 || y < 0 || x > 1 || y > 1 ? null : { x, y };
-  };
-  const H = {
-    mousemove: e => { const n = performance.now(); if (n - last < 33) return; const p = pos(e); if (p) { last = n; sendCtl(id, { t: 'm', ...p }); } },
-    mousedown: e => { const p = pos(e); if (p) { e.preventDefault(); sendCtl(id, { t: 'd', b: e.button, ...p }); } },
-    mouseup: e => { const p = pos(e); if (p) sendCtl(id, { t: 'u', b: e.button, ...p }); },
-    contextmenu: e => e.preventDefault(),
-    wheel: e => { e.preventDefault(); sendCtl(id, { t: 'w', dx: e.deltaX, dy: e.deltaY }); }
-  };
-  for (const k in H) t.addEventListener(k, H[k], { passive: false });
-  const key = e => { if (/INPUT|TEXTAREA/.test(e.target.tagName)) return; e.preventDefault(); sendCtl(id, { t: 'k', key: e.key, down: e.type === 'keydown' }); };
-  document.addEventListener('keydown', key); document.addEventListener('keyup', key);
-  offCtl = () => { for (const k in H) t.removeEventListener(k, H[k]); document.removeEventListener('keydown', key); document.removeEventListener('keyup', key); t.classList.remove('ctrl'); };
-}
-
-/* Sharer side: show the controller's pointer (and forward to the optional agent) */
-function applyInput(m) {
-  const t = $('t-' + me.uid); if (!t) return; const v = t.querySelector('video');
-  if (agent && agent.readyState === 1) agent.send(JSON.stringify(m));
-  if (m.x !== undefined) {
-    if (!cur || !cur.isConnected) {
-      cur = document.createElement('div'); cur.className = 'rcur';
-      cur.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 3l16 7-7 2-2 7z"/></svg><b></b>';
-      cur.querySelector('b').textContent = roster[ctrlBy]?.name || ''; t.append(cur);
-    }
-    const r = v.getBoundingClientRect(), vw = v.videoWidth || 1, vh = v.videoHeight || 1, k = Math.min(r.width / vw, r.height / vh), cw = vw * k, ch = vh * k;
-    const px = (r.width - cw) / 2 + m.x * cw, py = (r.height - ch) / 2 + m.y * ch;
-    cur.style.left = px + 'px'; cur.style.top = py + 'px';
-    if (m.t === 'd') { const rp = document.createElement('div'); rp.className = 'rip'; rp.style.left = px + 'px'; rp.style.top = py + 'px'; t.append(rp); setTimeout(() => rp.remove(), 500); }
-  } else if (m.t === 'k' && m.down && cur) cur.querySelector('b').textContent = (roster[ctrlBy]?.name || '') + ' ⌨ ' + m.key;
-}
-function connectAgent() {
-  if (agentAsked) return; agentAsked = true;
-  if (screenTrack?.getSettings().displaySurface !== 'monitor') return toast('Pointer-only mode. Share your "Entire screen" for real mouse/keyboard control.');
-  let tok = ''; try { tok = localStorage.getItem('agentToken') || ''; } catch {}
-  if (!tok) tok = (prompt('Optional: paste the token printed by the agent so the controller can use your real mouse and keyboard.\nLeave empty for pointer-only mode.') || '').trim();
-  if (!tok) return;
-  let opened = false;
-  try {
-    agent = new WebSocket('ws://127.0.0.1:8787/?token=' + encodeURIComponent(tok));
-    agent.onopen = () => { opened = true; try { localStorage.setItem('agentToken', tok); } catch {} toast('Control agent connected'); };
-    agent.onclose = () => {
-      if (!opened) { try { localStorage.removeItem('agentToken'); } catch {} toast('Agent refused the token or is not running (pointer-only mode)'); }
-      agent = null;
-    };
-  } catch {}
-}
-
-/* Side panel */
-function openPanel(tab) {
-  const same = chatOpen && ((tab === 'chat') === !$('paneChat').classList.contains('hidden'));
-  if (same) { chatOpen = false; $('side').classList.add('hidden'); return; }
-  chatOpen = true; $('side').classList.remove('hidden');
-  $('paneChat').classList.toggle('hidden', tab !== 'chat'); $('panePeople').classList.toggle('hidden', tab !== 'people');
-  $('tabChat').classList.toggle('on', tab === 'chat'); $('tabPeople').classList.toggle('on', tab !== 'chat');
-  if (tab === 'chat') { unread = 0; $('unread').classList.add('hidden'); $('msgs').scrollTop = 1e9; }
-}
-$('chatBtn').onclick = () => openPanel('chat'); $('pplBtn').onclick = () => openPanel('people');
-$('tabChat').onclick = () => { chatOpen = false; openPanel('chat'); }; $('tabPeople').onclick = () => { chatOpen = false; openPanel('people'); };
-function bump() { unread++; $('unread').textContent = unread; $('unread').classList.remove('hidden'); }
-
-/* Chat */
-$('cf').onsubmit = e => {
-  e.preventDefault(); const text = $('chatIn').value.trim(); if (!text) return;
-  addDoc(msgCol, { uid: me.uid, name: me.name, text: text.slice(0, 1000), ts: Date.now() }).catch(() => toast('Message failed'));
-  $('chatIn').value = '';
-};
-function addMsg(m) {
-  const d = document.createElement('div'); d.className = 'msg' + (m.uid === me.uid ? ' mine' : '');
-  const h = document.createElement('small'), b = document.createElement('span');
-  h.textContent = (m.uid === me.uid ? 'You' : m.name) + ' · ' + new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  b.textContent = m.text; d.append(h, b); $('msgs').append(d); $('msgs').scrollTop = 1e9;
-}
-
-/* Misc */
-$('copyBtn').onclick = () => {
-  navigator.clipboard.writeText(location.origin + location.pathname + '#' + room);
-  $('copyBtn').textContent = 'Copied!'; setTimeout(() => $('copyBtn').textContent = 'Copy invite link', 1500);
-};
-async function leave() {
-  unsubs.forEach(u => u()); Object.keys(peers).forEach(id => dropPeer(id, false));
-  await deleteDoc(myRef).catch(() => {});
-  localStream.getTracks().forEach(t => t.stop()); screenTrack?.stop(); rawTrack?.stop(); location.reload();
-}
-$('leaveBtn').onclick = leave;
-addEventListener('beforeunload', () => { if (myRef) deleteDoc(myRef); });
-addEventListener('keydown', e => {
-  if (!me || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
-  if (e.key === 'm') toggleMic(); if (e.key === 'v') toggleCam(); if (e.key === 'c') openPanel('chat');
+  syncSubs(); reloadFiles();
 });
+$('authBtn').onclick = async () => {
+  if (auth.currentUser && !auth.currentUser.isAnonymous) { await signOut(auth); return; }
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast('Sign-in failed: ' + (e.code || e.message)); }
+};
+/* Joins made from the meeting page (index.html) are queued in localStorage by meet-sync.js */
+function mergeJoins() {
+  let j = []; try { j = JSON.parse(localStorage.getItem('pm_joins') || '[]'); localStorage.removeItem('pm_joins'); } catch {}
+  let ch = false;
+  j.forEach(x => {
+    if (!x || !x.code) return;
+    if (!S.hist.some(h => h.code === x.code && Math.abs(h.ts - x.ts) < 30000)) { S.hist.push({ code: x.code, ts: x.ts }); ch = true; }
+    if (!S.rooms.some(r => r.code === x.code)) { addRoom(x.code); ch = true; }
+  });
+  if (ch) { S.hist = S.hist.slice(-300); save(); syncSubs(); render(); }
+}
+/* ---------- Shared files (saved in your Google Drive via Apps Script) ---------- */
+const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+const driveReady = () => SCRIPT_URL && !SCRIPT_URL.includes('PASTE');
+async function api(body) {
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'failed'); return j;
+}
+async function loadFiles() {
+  const box = $('files');
+  if (!driveReady()) return box.replaceChildren(el('div', 'empty', 'Connect Google Drive: paste your Apps Script URL into meet-config.js.'));
+  if (!auth.currentUser || !S.rooms.length) return box.replaceChildren(el('div', 'empty', 'No shared files yet.'));
+  try {
+    const { files } = await api({ action: 'list', rooms: S.rooms.map(r => r.code) });
+    $('fcount').textContent = files.length + (files.length === 1 ? ' file' : ' files'); box.replaceChildren();
+    if (!files.length) box.append(el('div', 'empty', 'No shared files yet.'));
+    files.slice(0, 15).forEach(f => {
+      const it = el('div', 'item'), g = el('div', 'grow'), b = el('button', 'ico', '⬇');
+      g.append(el('div', 't', f.name), el('div', 'm', f.room + ' · ' + fmtSize(f.size) + ' · ' + new Date(f.ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })));
+      b.title = 'Download';
+      b.onclick = async () => {
+        b.textContent = '…';
+        try { const j = await api({ action: 'get', id: f.id, room: f.room }), a = el('a'); a.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(j.data), c => c.charCodeAt(0))], { type: j.type })); a.download = f.name; a.click(); }
+        catch (e) { toast('Download failed: ' + e.message); }
+        b.textContent = '⬇';
+      };
+      it.append(g, b); box.append(it);
+    });
+  } catch (e) { box.replaceChildren(el('div', 'empty', 'Could not load files (' + e.message + ')')); }
+}
+let ft; const reloadFiles = () => { clearTimeout(ft); ft = setTimeout(loadFiles, 400); };
+$('refreshFiles').onclick = loadFiles;
 
-/* Start the level sampler (drives speaking highlight, echo guard and same-room echo detection) */
-setInterval(sample, HOP);
+setInterval(() => render(), 15000);
+
+/* ---------- actions ---------- */
+function addRoom(code, title) {
+  const r = S.rooms.find(x => x.code === code);
+  if (r) { if (title && !r.title) r.title = title; return; }
+  S.rooms.unshift({ code, title: title || '' }); S.rooms = S.rooms.slice(0, 12);
+}
+function go(code, title) {
+  code = clean(code); if (!code) return toast('Enter a room code');
+  S.name = $('name').value.trim() || S.name;
+  S.hist.push({ code, ts: Date.now() }); S.hist = S.hist.slice(-300);
+  addRoom(code, title); save(); syncSubs(); render();
+  window.open(link(code), '_blank');
+}
+const copy = c => { navigator.clipboard.writeText(link(c)).then(() => toast('Invite link copied'), () => toast(link(c))); };
+function ics(m) {
+  const f = t => new Date(t).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Pro Meet//EN', 'BEGIN:VEVENT', 'UID:' + m.id + '@promeet', 'DTSTAMP:' + f(Date.now()),
+    'DTSTART:' + f(m.start), 'DTEND:' + f(m.start + m.dur * 60000), 'SUMMARY:' + m.title.replace(/[\r\n,;]/g, ' '),
+    'DESCRIPTION:Join: ' + link(m.code), 'URL:' + link(m.code), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const a = el('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/calendar' })); a.download = 'meeting.ics'; a.click();
+}
+$('startBtn').onclick = () => go(newCode());
+$('joinBtn').onclick = () => go($('code').value);
+$('code').onkeydown = e => { if (e.key === 'Enter') go($('code').value); };
+$('name').onchange = () => { S.name = $('name').value.trim(); save(); render(); };
+$('schedBtn').onclick = () => {
+  const start = new Date($('sWhen').value).getTime();
+  if (!start || start < Date.now() - 60000) return toast('Pick a date and time in the future');
+  const m = { id: Date.now().toString(36), title: $('sTitle').value.trim() || 'Team meeting', start, dur: +$('sDur').value, code: newCode() };
+  S.sched.push(m); addRoom(m.code, m.title); save(); syncSubs(); render(); $('sTitle').value = ''; toast('Meeting scheduled');
+};
+
+/* ---------- render ---------- */
+function render() {
+  const now = Date.now();
+  S.sched = S.sched.filter(m => m.start + m.dur * 60000 > now - 864e5);
+  const up = S.sched.filter(m => m.start + m.dur * 60000 > now).sort((a, b) => a.start - b.start);
+  const rooms = S.rooms.map(r => ({ ...r, p: people(r.code) }));
+  const h = new Date().getHours();
+  $('hello').textContent = (h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening') + (S.name ? ', ' + S.name : '');
+  if (document.activeElement !== $('name')) $('name').value = S.name;
+
+  $('sLive').textContent = rooms.filter(r => r.p.length).length;
+  $('sOn').textContent = rooms.reduce((a, r) => a + r.p.length, 0);
+  $('sUp').textContent = up.length;
+  $('sWeek').textContent = S.hist.filter(x => x.ts > now - 7 * 864e5).length;
+
+  const R = $('rooms'); R.replaceChildren();
+  if (!rooms.length) R.append(el('div', 'empty', 'No rooms yet. Start an instant meeting or schedule one.'));
+  rooms.forEach(r => {
+    const it = el('div', 'item'), g = el('div', 'grow'), av = el('div', 'avs'), a = el('div', 'actions');
+    g.append(el('div', 't', r.title || r.code), el('div', 'm', r.p.length ? r.p.slice(0, 3).map(p => p.name).join(', ') + (r.p.length > 3 ? ' +' + (r.p.length - 3) : '') : 'Code: ' + r.code));
+    r.p.slice(0, 4).forEach(p => av.append(el('span', '', ini(p.name))));
+    const pill = el('span', 'pill' + (r.p.length ? ' live' : ''), r.p.length ? '● ' + r.p.length + ' live' : 'Idle');
+    const j = el('button', 'ico', r.p.length ? 'Join' : 'Open'), c = el('button', 'ico', '🔗'), x = el('button', 'ico', '✕');
+    c.title = 'Copy invite link'; x.title = 'Remove from list';
+    j.onclick = () => go(r.code, r.title); c.onclick = () => copy(r.code);
+    x.onclick = () => { S.rooms = S.rooms.filter(z => z.code !== r.code); save(); syncSubs(); render(); };
+    a.append(j, c, x); it.append(g, av, pill, a); R.append(it);
+  });
+
+  const U = $('upcoming'); U.replaceChildren();
+  if (!up.length) U.append(el('div', 'empty', 'Nothing scheduled.'));
+  up.forEach(m => {
+    const it = el('div', 'item'), g = el('div', 'grow'), a = el('div', 'actions'), run = m.start <= now, soon = !run && m.start - now < 15 * 60000;
+    g.append(el('div', 't', m.title), el('div', 'm', new Date(m.start).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' · ' + m.dur + ' min'));
+    const pill = el('span', 'pill' + (run ? ' live' : soon ? ' soon' : ''), run ? 'In progress' : 'in ' + fmtIn(m.start - now));
+    const j = el('button', 'ico', run ? 'Join' : 'Start'), cal = el('button', 'ico', '📅'), c = el('button', 'ico', '🔗'), x = el('button', 'ico', '✕');
+    cal.title = 'Add to calendar (.ics)'; c.title = 'Copy invite link'; x.title = 'Delete';
+    j.onclick = () => go(m.code, m.title); cal.onclick = () => ics(m); c.onclick = () => copy(m.code);
+    x.onclick = () => { S.sched = S.sched.filter(z => z.id !== m.id); save(); syncSubs(); render(); };
+    a.append(j, cal, c, x); it.append(g, pill, a); U.append(it);
+  });
+
+  const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 6 + i); return d; });
+  const n = days.map(d => S.hist.filter(x => x.ts >= d.getTime() && x.ts < d.getTime() + 864e5).length), mx = Math.max(1, ...n);
+  $('chart').innerHTML = '<svg viewBox="0 0 300 120" width="100%">' + n.map((v, i) => {
+    const hh = v * 70 / mx, x = i * 42 + 8;
+    return `<rect x="${x}" y="${85 - hh}" width="26" height="${Math.max(hh, 2)}" rx="5" fill="${v ? '#3b82f6' : '#262d38'}"/>` +
+      `<text x="${x + 13}" y="${80 - hh}" fill="#8b96a8" font-size="11" text-anchor="middle">${v || ''}</text>` +
+      `<text x="${x + 13}" y="108" fill="#8b96a8" font-size="11" text-anchor="middle">${days[i].toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}</text>`;
+  }).join('') + '</svg>';
+}
+
+const d0 = new Date(Date.now() + 36e5); d0.setMinutes(0, 0, 0);
+$('sWhen').value = new Date(d0 - d0.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+mergeJoins(); render(); syncSubs();
+addEventListener('storage', e => { if (e.key === 'pm_joins') mergeJoins(); });
+addEventListener('focus', mergeJoins);
 </script>
-<script type="module" src="attach.js"></script>
 </body>
 </html>
