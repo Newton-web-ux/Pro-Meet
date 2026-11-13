@@ -1,15 +1,17 @@
-// note.js - meeting notes for Pro Meet: private notes + private drawing pad + shared live notes.
+// note.js - meeting notes for Pro Meet: private multi-page notebook (text + drawing per page) + shared live notes.
 // Save to Drive (host sees it in Drive) or Share to room (also posts file cards in chat).
 import { getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SCRIPT_URL } from "./meet-config.js";
 
-const $ = id => document.getElementById(id), W = 800, H = 600;
+const $ = id => document.getElementById(id), W = 800, H = 600, MAXP = 30;
 const KINDS = { note: '📝', action: '✅', decision: '⭐' };
 const N = new Map();                                    // shared note id -> data
-let db, auth, uid, room, col, open = false, started = false, firstSnap = true, tab = 'me';
-let strokes = [], cur = null, tool = 'pen', color = '#111111', size = 4, cv, g;
+let db, auth, uid, room, col, open = false, started = false, loaded = false, firstSnap = true, tab = 'me';
+let book = { cur: 0, pages: [{ text: '', strokes: [] }] };   // private notebook: each page has text + drawing
+let act = null, tool = 'pen', color = '#111111', size = 4, cv, g;
+const P = () => book.pages[book.cur];
 
 const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; $('toasts').append(d); setTimeout(() => d.remove(), 3500); };
 const myName = () => document.querySelector('#t-' + uid + ' .nm')?.textContent.replace(/ \(You\)$/, '') || 'Guest';
@@ -26,10 +28,12 @@ css.textContent = `#nt{width:360px;background:var(--panel);border-left:1px solid
 .nth{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px}
 .ntt{display:flex;border-bottom:1px solid var(--line)}.ntt button{flex:1;padding:10px 4px;color:var(--mut);font-size:13px}
 .ntt button.on{color:var(--txt);border-bottom:2px solid var(--acc)}
+.ntpg{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line)}
+.ntpg select{flex:1;min-width:0;background:#0b0e13;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit;font-size:13px}
 .ntp{flex:1;display:flex;flex-direction:column;min-height:0;padding:10px;gap:8px}
 #ntMine{flex:1;resize:none;background:#0b0e13;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;font-size:14px;line-height:1.5;outline:none;min-height:0}
 #ntMine:focus{border-color:var(--acc)}
-.ntb{background:#222a36;padding:7px 10px;border-radius:8px;font-size:13px}.ntb:hover{background:#2c3544}.ntb:disabled{opacity:.6}
+.ntb{background:#222a36;padding:7px 10px;border-radius:8px;font-size:13px}.ntb:hover{background:#2c3544}.ntb:disabled{opacity:.5}
 .ntb.pri{background:var(--acc);color:#fff}.ntb.on{background:var(--acc);color:#fff}
 #ntList{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;min-height:0}
 .ntn{background:#222a36;border-radius:10px;padding:8px 10px;font-size:14px;word-break:break-word}.ntn.mine{background:#1e3a68}
@@ -54,6 +58,7 @@ $('handBtn').after(btn);
 const panel = document.createElement('aside'); panel.id = 'nt'; panel.className = 'hidden';
 panel.innerHTML = `<div class="nth"><b>Meeting notes</b><button class="ntb" id="ntX">✕</button></div>
 <div class="ntt"><button id="ntTabMe" class="on">📝 My notes</button><button id="ntTabDraw">✏️ Draw</button><button id="ntTabAll">👥 Shared<span class="ntd hidden" id="ntTabDot"></span></button></div>
+<div class="ntpg" id="ntPg"><button class="ntb" id="ntPrev" title="Previous page">◀</button><select id="ntSel"></select><button class="ntb" id="ntNext" title="Next page">▶</button><button class="ntb" id="ntAdd">＋ Page</button><button class="ntb" id="ntDel" title="Delete page">🗑</button></div>
 <div class="ntp" id="ntPaneMe"><textarea id="ntMine" placeholder="Only you can see these notes. They are saved in this browser."></textarea>
 <div><button class="ntb" id="ntStamp">⏱ Add timestamp</button></div></div>
 <div class="ntp hidden" id="ntPaneDraw"><div class="ntdt">
@@ -71,6 +76,7 @@ cv = $('ntc'); g = cv.getContext('2d');
 function setTab(t) {
   tab = t;
   [['me', 'Me'], ['draw', 'Draw'], ['all', 'All']].forEach(([k, s]) => { $('ntPane' + s).classList.toggle('hidden', t !== k); $('ntTab' + s).classList.toggle('on', t === k); });
+  $('ntPg').classList.toggle('hidden', t === 'all');                   // pages apply to My notes and Draw only
   if (t === 'all') { $('ntTabDot').classList.add('hidden'); $('ntList').scrollTop = 1e9; }
   if (t === 'draw') redraw();
 }
@@ -82,15 +88,55 @@ btn.onclick = () => { if (!room) return toast('Join a meeting first'); setOpen(!
 $('ntX').onclick = () => setOpen(false);
 $('ntTabMe').onclick = () => setTab('me'); $('ntTabDraw').onclick = () => setTab('draw'); $('ntTabAll').onclick = () => setTab('all');
 
-/* ---------- Private notes (localStorage, per room) ---------- */
-const lsKey = () => 'promeet-notes-' + room, lsDraw = () => 'promeet-draw-' + room;
-$('ntMine').oninput = e => { try { localStorage.setItem(lsKey(), e.target.value); } catch {} };
+/* ---------- Private notebook (localStorage, per room) ---------- */
+const lsBook = () => 'promeet-notes-v2-' + room;
+let saveT;
+const doSave = () => { if (!loaded) return; try { localStorage.setItem(lsBook(), JSON.stringify(book)); } catch {} };
+const save = () => { clearTimeout(saveT); saveT = setTimeout(doSave, 300); };
+addEventListener('pagehide', doSave);
+function load() {
+  let b = null;
+  try { b = JSON.parse(localStorage.getItem(lsBook()) || 'null'); } catch {}
+  if (!b || !Array.isArray(b.pages) || !b.pages.length) {                 // new notebook; import the old single-page notes/drawing
+    b = { cur: 0, pages: [{ text: '', strokes: [] }] };
+    try {
+      b.pages[0].text = localStorage.getItem('promeet-notes-' + room) || '';
+      const old = JSON.parse(localStorage.getItem('promeet-draw-' + room) || '[]'); if (Array.isArray(old)) b.pages[0].strokes = old;
+    } catch {}
+  }
+  b.pages.forEach(p => { p.text = String(p.text || ''); if (!Array.isArray(p.strokes)) p.strokes = []; });
+  b.cur = Math.min(Math.max(0, b.cur | 0), b.pages.length - 1);
+  book = b; loaded = true; showPage();
+}
+function showPage() { $('ntMine').value = P().text; redraw(); pgUI(); }
+function pgUI() {
+  const sel = $('ntSel'), n = book.pages.length; sel.innerHTML = '';
+  book.pages.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = 'Page ' + (i + 1) + ' of ' + n + (p.text.trim() || p.strokes.length ? ' •' : ''); sel.append(o); });
+  sel.value = book.cur; $('ntPrev').disabled = book.cur <= 0; $('ntNext').disabled = book.cur >= n - 1;
+}
+function goPage(i) { end(); book.cur = Math.min(Math.max(0, i), book.pages.length - 1); save(); showPage(); }
+$('ntPrev').onclick = () => goPage(book.cur - 1);
+$('ntNext').onclick = () => goPage(book.cur + 1);
+$('ntSel').onchange = e => goPage(+e.target.value);
+$('ntAdd').onclick = () => {
+  if (book.pages.length >= MAXP) return toast('Page limit reached (' + MAXP + ')');
+  end(); book.pages.push({ text: '', strokes: [] }); goPage(book.pages.length - 1);
+};
+$('ntDel').onclick = () => {
+  const p = P(), empty = !p.text.trim() && !p.strokes.length, many = book.pages.length > 1;
+  if (!empty && !confirm(many ? 'Delete page ' + (book.cur + 1) + '?' : 'Clear this page?')) return;
+  end();
+  if (many) { book.pages.splice(book.cur, 1); book.cur = Math.min(book.cur, book.pages.length - 1); } else book.pages[0] = { text: '', strokes: [] };
+  save(); showPage();
+};
+
+$('ntMine').oninput = e => { P().text = e.target.value; save(); pgUI(); };
 $('ntStamp').onclick = () => {
   const t = $('ntMine'), s = '[' + $('timer').textContent + '] ';
   t.setRangeText(s, t.selectionStart, t.selectionEnd, 'end'); t.focus(); t.dispatchEvent(new Event('input'));
 };
 
-/* ---------- Drawing pad (private, saved in this browser) ---------- */
+/* ---------- Drawing pad (one drawing per page) ---------- */
 function draw(c, s) {
   const p = s.pts; if (!p || p.length < 2) return;
   c.save(); c.lineCap = c.lineJoin = 'round'; c.lineWidth = s.tool === 'eraser' ? s.size * 3 : s.size; c.strokeStyle = c.fillStyle = s.color;
@@ -108,30 +154,33 @@ function draw(c, s) {
   }
   c.restore();
 }
-function redraw() { g.clearRect(0, 0, W, H); strokes.forEach(s => draw(g, s)); }
-const saveDraw = () => { try { localStorage.setItem(lsDraw(), JSON.stringify(strokes)); } catch {} };
+function redraw() { g.clearRect(0, 0, W, H); P().strokes.forEach(s => draw(g, s)); }
 const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height].map(v => Math.round(Math.min(1, Math.max(0, v)) * 1e4) / 1e4); };
 
 panel.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tool = b.dataset.t; panel.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x === b)); });
 $('ntCol').oninput = e => { color = e.target.value; }; $('ntSize').oninput = e => { size = +e.target.value; };
 cv.addEventListener('pointerdown', e => {
   e.preventDefault(); const p = pt(e);
-  if (tool === 'text') { const t = prompt('Text to add'); if (t && t.trim()) { strokes.push({ tool, color, size, pts: p, text: t.trim().slice(0, 200) }); saveDraw(); redraw(); } return; }
+  if (tool === 'text') { const t = prompt('Text to add'); if (t && t.trim()) { P().strokes.push({ tool, color, size, pts: p, text: t.trim().slice(0, 200) }); save(); pgUI(); redraw(); } return; }
   cv.setPointerCapture(e.pointerId);
-  cur = { tool, color, size, pts: tool === 'pen' || tool === 'eraser' ? p : [...p, ...p] }; strokes.push(cur); redraw();
+  act = { tool, color, size, pts: tool === 'pen' || tool === 'eraser' ? p : [...p, ...p] }; P().strokes.push(act); redraw();
 });
 cv.addEventListener('pointermove', e => {
-  if (!cur) return; const p = pt(e);
-  if (cur.tool === 'pen' || cur.tool === 'eraser') { if (cur.pts.length < 4000) cur.pts.push(...p); } else { cur.pts[2] = p[0]; cur.pts[3] = p[1]; }
+  if (!act) return; const p = pt(e);
+  if (act.tool === 'pen' || act.tool === 'eraser') { if (act.pts.length < 4000) act.pts.push(...p); } else { act.pts[2] = p[0]; act.pts[3] = p[1]; }
   redraw();
 });
-const end = () => { if (cur) { cur = null; saveDraw(); } };
+const end = () => { if (act) { act = null; save(); pgUI(); } };
 cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-$('ntUndo').onclick = () => { strokes.pop(); saveDraw(); redraw(); };
-$('ntClr').onclick = () => { if (strokes.length && confirm('Clear your drawing?')) { strokes = []; saveDraw(); redraw(); } };
-function png() { const o = document.createElement('canvas'); o.width = W; o.height = H; const c = o.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.drawImage(cv, 0, 0); return o.toDataURL('image/png'); }
+$('ntUndo').onclick = () => { end(); P().strokes.pop(); save(); pgUI(); redraw(); };
+$('ntClr').onclick = () => { if (P().strokes.length && confirm('Clear the drawing on this page?')) { end(); P().strokes = []; save(); pgUI(); redraw(); } };
+function pngOf(list) {
+  const t = document.createElement('canvas'); t.width = W; t.height = H; const tc = t.getContext('2d'); list.forEach(s => draw(tc, s));
+  const o = document.createElement('canvas'); o.width = W; o.height = H; const c = o.getContext('2d');
+  c.fillStyle = '#fff'; c.fillRect(0, 0, W, H); c.drawImage(t, 0, 0); return o.toDataURL('image/png');
+}
 
-/* ---------- Shared notes (Firestore) ---------- */
+/* ---------- Shared notes (Firestore) - one live feed, no pages ---------- */
 function render() {
   const l = $('ntList'); l.innerHTML = '';
   const items = [...N.entries()].sort((a, b) => a[1].ts - b[1].ts);
@@ -152,10 +201,14 @@ $('ntForm').onsubmit = e => {
   $('ntIn').value = '';
 };
 
-/* ---------- Export / Drive ---------- */
+/* ---------- Export / Drive (all pages) ---------- */
 function exportText() {
   const out = ['Meeting notes · room ' + room + ' · ' + myName(), new Date().toLocaleString(), ''];
-  out.push('=== My notes ===', $('ntMine').value.trim() || '(empty)', '', '=== Shared notes ===');
+  const many = book.pages.length > 1, filled = book.pages.map((p, i) => [i + 1, p.text.trim()]).filter(([, t]) => t);
+  out.push('=== My notes ===');
+  if (!filled.length) out.push('(empty)');
+  filled.forEach(([n, t]) => { if (many) out.push('--- Page ' + n + ' ---'); out.push(t, ''); });
+  out.push('=== Shared notes ===');
   const items = [...N.values()].sort((a, b) => a.ts - b.ts);
   if (!items.length) out.push('(none)');
   items.forEach(n => out.push('[' + hhmm(n.ts) + '] ' + (n.name || 'Guest') + ' (' + (n.kind || 'note') + '): ' + n.text));
@@ -164,23 +217,25 @@ function exportText() {
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
 const who = () => myName().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 20) || 'guest';
 const base = () => room + '-' + who() + '-' + stamp();
-const hasText = () => $('ntMine').value.trim() || N.size;
+const hasText = () => book.pages.some(p => p.text.trim()) || N.size;
+const drawn = () => book.pages.map((p, i) => ({ n: i + 1, strokes: p.strokes })).filter(p => p.strokes.length);
 
 function download(href, name) { const a = document.createElement('a'); a.href = href; a.download = name; a.click(); }
 $('ntDl').onclick = () => {
-  const url = URL.createObjectURL(new Blob([exportText()], { type: 'text/plain' }));
-  download(url, 'notes-' + base() + '.txt'); setTimeout(() => URL.revokeObjectURL(url), 5000);
-  if (strokes.length) setTimeout(() => download(png(), 'drawing-' + base() + '.png'), 300);
+  const b = base(), url = URL.createObjectURL(new Blob([exportText()], { type: 'text/plain' }));
+  download(url, 'notes-' + b + '.txt'); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  drawn().forEach((p, k) => setTimeout(() => download(pngOf(p.strokes), 'drawing-' + b + '-p' + p.n + '.png'), 300 * (k + 1)));
 };
 async function saveToDrive(share) {
   if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE')) return toast('Google Drive is not set up yet (see meet-config.js)');
-  if (!hasText() && !strokes.length) return toast('Nothing to save yet. Write a note or draw something first.');
+  const pics = drawn();
+  if (!hasText() && !pics.length) return toast('Nothing to save yet. Write a note or draw something first.');
   const bs = [$('ntDrive'), $('ntShare')], labels = bs.map(b => b.textContent);
   bs.forEach(b => { b.disabled = true; }); (share ? bs[1] : bs[0]).textContent = 'Saving…';
   try {
-    const files = [];
-    if (hasText()) { let bin = ''; new TextEncoder().encode(exportText()).forEach(c => bin += String.fromCharCode(c)); files.push({ name: 'notes-' + base() + '.txt', type: 'text/plain', data: btoa(bin) }); }
-    if (strokes.length) files.push({ name: 'drawing-' + base() + '.png', type: 'image/png', data: png().split(',')[1] });
+    const b = base(), files = [];
+    if (hasText()) { let bin = ''; new TextEncoder().encode(exportText()).forEach(c => bin += String.fromCharCode(c)); files.push({ name: 'notes-' + b + '.txt', type: 'text/plain', data: btoa(bin) }); }
+    pics.forEach(p => files.push({ name: 'drawing-' + b + '-p' + p.n + '.png', type: 'image/png', data: pngOf(p.strokes).split(',')[1] }));
     for (const f of files) {
       const j = await api({ action: 'upload', room, ...f });
       if (share) await addDoc(collection(db, 'rooms', room, 'messages'), { uid, name: myName(), text: '[[drive:' + JSON.stringify({ id: j.id, name: j.name, size: j.size, type: j.type }) + ']]', ts: Date.now() });
@@ -198,8 +253,7 @@ function start() {
   const app = getApps()[0]; auth = getAuth(app); db = getFirestore(app); uid = auth.currentUser?.uid;
   room = decodeURIComponent(location.hash.slice(1)); if (!uid || !room) { started = false; return; }
   col = collection(db, 'rooms', room, 'notes');
-  try { $('ntMine').value = localStorage.getItem(lsKey()) || ''; strokes = JSON.parse(localStorage.getItem(lsDraw()) || '[]'); } catch { strokes = []; }
-  redraw(); render();
+  load(); render();
   onSnapshot(col, snap => {
     let other = false;
     snap.docChanges().forEach(ch => {
