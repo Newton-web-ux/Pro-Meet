@@ -37,7 +37,14 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
 .avs{display:flex}.avs span{width:26px;height:26px;border-radius:50%;background:var(--acc);border:2px solid var(--panel);margin-left:-8px;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}.avs span:first-child{margin-left:0}
 .empty{color:var(--mut);font-size:13px;text-align:center;padding:18px}
 .actions{display:flex;gap:6px}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222a36;border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}#toast.show{opacity:1}
+.more{display:block;margin:12px auto 0;color:var(--acc);font-size:13px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}.modal.hidden{display:none}
+.mbox{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:min(580px,100%);max-height:86vh;overflow:auto;padding:20px}
+.mh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.mh h3{font-size:18px}
+.mbox h4{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin:18px 0 8px}
+.pl{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}.pl span:last-child{color:var(--mut);white-space:nowrap}
+.nt{background:#222a36;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:6px;word-break:break-word}.nt small{display:block;color:var(--mut);font-size:11px;margin-bottom:2px}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222a36;border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}#toast.show{opacity:1}
 @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}.cols{grid-template-columns:1fr}main,header{padding-left:16px;padding-right:16px}}
 </style>
 </head>
@@ -74,6 +81,11 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
       </div>
 
       <div class="card">
+        <h2>Past meetings <small id="pcount">saved for everyone who joined</small></h2>
+        <div id="past"></div>
+      </div>
+
+      <div class="card">
         <h2>Shared files <small id="fcount">Google Drive</small><button class="ico" id="refreshFiles" title="Refresh">↻</button></h2>
         <div id="files"></div>
       </div>
@@ -101,12 +113,13 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
     </div>
   </div>
 </main>
+<div class="modal hidden" id="modal"><div class="mbox" id="mbox"></div></div>
 <div id="toast"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { SCRIPT_URL } from './meet-config.js';
 
@@ -117,10 +130,10 @@ const app = initializeApp({
 const auth = getAuth(app), db = getFirestore(app);
 
 /* ---------- state (kept in this browser) ---------- */
-const $ = id => document.getElementById(id), K = 'pm_dash';
+const $ = id => document.getElementById(id), K = 'pm_dash', GAP = 30 * 60000, MAXROOMS = 30;
 let S = { name: '', rooms: [], sched: [], hist: [] };
 try { S = { ...S, ...JSON.parse(localStorage.getItem(K) || '{}') }; } catch {}
-let uref = null;
+let uref = null, pastN = 10;
 const save = () => {
   try { localStorage.setItem('pm_name', S.name || ''); } catch {}
   if (uref) setDoc(uref, S).catch(() => toast('Cloud save failed. Publish the new Firestore rules.'));
@@ -133,15 +146,22 @@ const clean = s => s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
 const ini = n => (n || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 let tt; const toast = t => { const x = $('toast'); x.textContent = t; x.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => x.classList.remove('show'), 2600); };
 const fmtIn = ms => { const m = Math.max(1, Math.round(ms / 60000)); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h < 24 ? h + 'h ' + (m % 60) + 'm' : Math.floor(h / 24) + 'd ' + (h % 24) + 'h'; };
+const fmtDur = ms => { const m = Math.max(1, Math.round(ms / 60000)); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm'; };
+const tm = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const dt = ts => new Date(ts).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-/* ---------- live room status (Firestore participants) ---------- */
-const subs = {}, live = {};
+/* ---------- live room status + saved attendance (Firestore) ---------- */
+const subs = {}, ssubs = {}, live = {}, sess = {};
 const people = c => (live[c] || []).filter(p => Date.now() - p.seen < 45000);
 function syncSubs() {
   const codes = new Set([...S.rooms.map(r => r.code), ...S.sched.map(s => s.code)]);
   for (const c in subs) if (!codes.has(c)) { subs[c](); delete subs[c]; delete live[c]; }
+  for (const c in ssubs) if (!codes.has(c)) { ssubs[c](); delete ssubs[c]; delete sess[c]; }
   if (!auth.currentUser) return;
-  codes.forEach(c => { if (!subs[c]) subs[c] = onSnapshot(collection(db, 'rooms', c, 'participants'), s => { live[c] = s.docs.map(d => d.data()); render(); }, () => {}); });
+  codes.forEach(c => {
+    if (!subs[c]) subs[c] = onSnapshot(collection(db, 'rooms', c, 'participants'), s => { live[c] = s.docs.map(d => d.data()); render(); }, () => {});
+    if (!ssubs[c]) ssubs[c] = onSnapshot(query(collection(db, 'rooms', c, 'sessions'), orderBy('joinedAt', 'desc'), limit(200)), s => { sess[c] = s.docs.map(d => d.data()); render(); }, () => {});
+  });
 }
 /* ---------- Firebase sign-in + cloud sync (users/{uid}) ---------- */
 let unsubU = null, wasG = false;
@@ -170,7 +190,7 @@ $('authBtn').onclick = async () => {
   if (auth.currentUser && !auth.currentUser.isAnonymous) { await signOut(auth); return; }
   try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { toast('Sign-in failed: ' + (e.code || e.message)); }
 };
-/* Joins made from the meeting page (index.html) are queued in localStorage by meet-sync.js */
+/* Joins made from the meeting page are queued in localStorage by meet-sync.js */
 function mergeJoins() {
   let j = []; try { j = JSON.parse(localStorage.getItem('pm_joins') || '[]'); localStorage.removeItem('pm_joins'); } catch {}
   let ch = false;
@@ -189,6 +209,18 @@ async function api(body) {
   const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error || 'failed'); return j;
 }
+function fileRow(f) {
+  const it = el('div', 'item'), g = el('div', 'grow'), b = el('button', 'ico', '⬇');
+  g.append(el('div', 't', f.name), el('div', 'm', f.room + ' · ' + fmtSize(f.size) + ' · ' + new Date(f.ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })));
+  b.title = 'Download';
+  b.onclick = async () => {
+    b.textContent = '…';
+    try { const j = await api({ action: 'get', id: f.id, room: f.room }), a = el('a'); a.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(j.data), c => c.charCodeAt(0))], { type: j.type })); a.download = f.name; a.click(); }
+    catch (e) { toast('Download failed: ' + e.message); }
+    b.textContent = '⬇';
+  };
+  it.append(g, b); return it;
+}
 async function loadFiles() {
   const box = $('files');
   if (!driveReady()) return box.replaceChildren(el('div', 'empty', 'Connect Google Drive: paste your Apps Script URL into meet-config.js.'));
@@ -197,18 +229,7 @@ async function loadFiles() {
     const { files } = await api({ action: 'list', rooms: S.rooms.map(r => r.code) });
     $('fcount').textContent = files.length + (files.length === 1 ? ' file' : ' files'); box.replaceChildren();
     if (!files.length) box.append(el('div', 'empty', 'No shared files yet.'));
-    files.slice(0, 15).forEach(f => {
-      const it = el('div', 'item'), g = el('div', 'grow'), b = el('button', 'ico', '⬇');
-      g.append(el('div', 't', f.name), el('div', 'm', f.room + ' · ' + fmtSize(f.size) + ' · ' + new Date(f.ts).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })));
-      b.title = 'Download';
-      b.onclick = async () => {
-        b.textContent = '…';
-        try { const j = await api({ action: 'get', id: f.id, room: f.room }), a = el('a'); a.href = URL.createObjectURL(new Blob([Uint8Array.from(atob(j.data), c => c.charCodeAt(0))], { type: j.type })); a.download = f.name; a.click(); }
-        catch (e) { toast('Download failed: ' + e.message); }
-        b.textContent = '⬇';
-      };
-      it.append(g, b); box.append(it);
-    });
+    files.slice(0, 15).forEach(f => box.append(fileRow(f)));
   } catch (e) { box.replaceChildren(el('div', 'empty', 'Could not load files (' + e.message + ')')); }
 }
 let ft; const reloadFiles = () => { clearTimeout(ft); ft = setTimeout(loadFiles, 400); };
@@ -216,11 +237,66 @@ $('refreshFiles').onclick = loadFiles;
 
 setInterval(() => render(), 15000);
 
+/* ---------- Past meetings: group attendance records into meetings ---------- */
+function meetingsOf(code) {
+  const a = (sess[code] || []).filter(x => x && x.joinedAt).slice().sort((x, y) => x.joinedAt - y.joinedAt), out = [];
+  a.forEach(x => {
+    const end = x.leftAt || x.joinedAt, m = out[out.length - 1];
+    if (m && x.joinedAt - m.end < GAP) { m.end = Math.max(m.end, end); m.att.push(x); }
+    else out.push({ code, start: x.joinedAt, end, att: [x] });
+  });
+  return out;
+}
+function attendees(m) {
+  const mp = new Map();
+  m.att.forEach(a => {
+    const k = a.name || 'Guest', p = mp.get(k), l = a.leftAt || a.joinedAt;
+    if (!p) mp.set(k, { name: k, join: a.joinedAt, left: l }); else { p.join = Math.min(p.join, a.joinedAt); p.left = Math.max(p.left, l); }
+  });
+  return [...mp.values()].sort((a, b) => a.join - b.join);
+}
+const titleOf = c => (S.rooms.find(r => r.code === c) || S.sched.find(s => s.code === c) || {}).title || c;
+const closeModal = () => $('modal').classList.add('hidden');
+$('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
+addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+async function details(m) {
+  const box = $('mbox'), ppl = attendees(m); box.replaceChildren(); $('modal').classList.remove('hidden');
+  const head = el('div', 'mh'), hl = el('div'), x = el('button', 'ico', '✕');
+  hl.append(el('h3', '', titleOf(m.code)), el('div', 'm', dt(m.start) + ' · ' + fmtDur(m.end - m.start) + ' · room ' + m.code));
+  x.onclick = closeModal; head.append(hl, x); box.append(head);
+
+  box.append(el('h4', '', 'Participants (' + ppl.length + ')'));
+  ppl.forEach(p => { const r = el('div', 'pl'); r.append(el('span', '', p.name), el('span', '', tm(p.join) + ' – ' + tm(p.left))); box.append(r); });
+
+  box.append(el('h4', '', 'Shared notes'));
+  const nb = el('div'); nb.append(el('div', 'm', 'Loading…')); box.append(nb);
+  box.append(el('h4', '', 'Files saved during this meeting'));
+  const fb = el('div'); fb.append(el('div', 'm', 'Loading…')); box.append(fb);
+
+  const lo = m.start - 60000, hi = m.end + 30 * 60000;
+  try {
+    const s = await getDocs(collection(db, 'rooms', m.code, 'notes'));
+    const notes = s.docs.map(d => d.data()).filter(n => n.ts >= lo && n.ts <= hi).sort((a, b) => a.ts - b.ts);
+    nb.replaceChildren();
+    if (!notes.length) nb.append(el('div', 'm', 'No shared notes were written.'));
+    const em = { note: '📝', action: '✅', decision: '⭐' };
+    notes.forEach(n => { const d = el('div', 'nt'); d.append(el('small', '', (em[n.kind] || '📝') + ' ' + (n.name || 'Guest') + ' · ' + tm(n.ts)), el('span', '', n.text)); nb.append(d); });
+  } catch { nb.replaceChildren(el('div', 'm', 'Could not load notes.')); }
+  if (!driveReady()) fb.replaceChildren(el('div', 'm', 'Google Drive is not connected.'));
+  else try {
+    const { files } = await api({ action: 'list', rooms: [m.code] });
+    const hit = files.filter(f => f.ts >= lo && f.ts <= hi); fb.replaceChildren();
+    if (!hit.length) fb.append(el('div', 'm', 'No files were saved.'));
+    hit.forEach(f => fb.append(fileRow(f)));
+  } catch (e) { fb.replaceChildren(el('div', 'm', 'Could not load files (' + e.message + ')')); }
+}
+
 /* ---------- actions ---------- */
 function addRoom(code, title) {
   const r = S.rooms.find(x => x.code === code);
   if (r) { if (title && !r.title) r.title = title; return; }
-  S.rooms.unshift({ code, title: title || '' }); S.rooms = S.rooms.slice(0, 12);
+  S.rooms.unshift({ code, title: title || '' }); S.rooms = S.rooms.slice(0, MAXROOMS);
 }
 function go(code, title) {
   code = clean(code); if (!code) return toast('Enter a room code');
@@ -276,6 +352,21 @@ function render() {
     x.onclick = () => { S.rooms = S.rooms.filter(z => z.code !== r.code); save(); syncSubs(); render(); };
     a.append(j, c, x); it.append(g, av, pill, a); R.append(it);
   });
+
+  /* Past meetings */
+  const all = S.rooms.flatMap(r => meetingsOf(r.code)).sort((a, b) => b.start - a.start), P = $('past'); P.replaceChildren();
+  $('pcount').textContent = all.length ? all.length + (all.length === 1 ? ' meeting' : ' meetings') : 'saved for everyone who joined';
+  if (!all.length) P.append(el('div', 'empty', 'No past meetings yet. Each meeting you join is saved here with its participants, notes and files.'));
+  all.slice(0, pastN).forEach(m => {
+    const ppl = attendees(m), isLive = people(m.code).length > 0 && now - m.end < 90000;
+    const it = el('div', 'item'), g = el('div', 'grow'), a = el('div', 'actions');
+    g.append(el('div', 't', titleOf(m.code)), el('div', 'm', dt(m.start) + ' · ' + ppl.length + (ppl.length === 1 ? ' person' : ' people') + ' · ' + ppl.slice(0, 3).map(p => p.name).join(', ') + (ppl.length > 3 ? ' +' + (ppl.length - 3) : '')));
+    const pill = el('span', 'pill' + (isLive ? ' live' : ''), isLive ? '● Live' : fmtDur(m.end - m.start));
+    const d = el('button', 'ico', 'Details'), o = el('button', 'ico', isLive ? 'Join' : 'Open');
+    o.title = 'Open this room'; d.onclick = () => details(m); o.onclick = () => go(m.code, titleOf(m.code) === m.code ? '' : titleOf(m.code));
+    a.append(d, o); it.append(g, pill, a); P.append(it);
+  });
+  if (all.length > pastN) { const b = el('button', 'more', 'Show more (' + (all.length - pastN) + ')'); b.onclick = () => { pastN += 10; render(); }; P.append(b); }
 
   const U = $('upcoming'); U.replaceChildren();
   if (!up.length) U.append(el('div', 'empty', 'Nothing scheduled.'));
