@@ -5,7 +5,7 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 import { getFirestore, collection, doc, addDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SCRIPT_URL } from "./meet-config.js";
 
-const $ = id => document.getElementById(id), W = 800, H = 600, MAXP = 30;
+const $ = id => document.getElementById(id), W = 1600, H = 1200, SC = W / 800, MAXP = 30;
 const KINDS = { note: '📝', action: '✅', decision: '⭐' };
 const N = new Map();                                    // shared note id -> data
 let db, auth, uid, room, col, open = false, started = false, loaded = false, firstSnap = true, tab = 'me';
@@ -46,9 +46,12 @@ css.textContent = `#nt{width:360px;background:var(--panel);border-left:1px solid
 .ntd{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:6px}
 .ntdt{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .ntdt input[type=color]{width:32px;height:30px;padding:0;border-radius:8px;cursor:pointer}.ntdt input[type=range]{width:70px;padding:0}
-.ntarea{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
-#ntc{width:100%;max-height:100%;aspect-ratio:4/3;background:#fff;border-radius:10px;touch-action:none;cursor:crosshair}
-@media(max-width:760px){#nt{position:fixed;inset:0;width:100%;z-index:6}}`;
+.ntarea{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;overflow:auto}
+#ntc{width:min(100%,calc((100vh - 330px)*1.3333));aspect-ratio:4/3;background:#fff;border-radius:10px;touch-action:none;cursor:crosshair}
+#nt.wide{width:min(62vw,780px)}
+#nt.full{position:fixed;inset:0;width:100%;z-index:6;border-left:0}
+#nt.full #ntc{width:min(100%,calc((100vh - 270px)*1.3333))}
+@media(max-width:760px){#nt,#nt.wide{position:fixed;inset:0;width:100%;z-index:6}}`;
 document.head.append(css);
 
 const btn = document.createElement('button'); btn.className = 'cb'; btn.id = 'ntBtn';
@@ -56,7 +59,7 @@ btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 
 $('handBtn').after(btn);
 
 const panel = document.createElement('aside'); panel.id = 'nt'; panel.className = 'hidden';
-panel.innerHTML = `<div class="nth"><b>Meeting notes</b><button class="ntb" id="ntX">✕</button></div>
+panel.innerHTML = `<div class="nth"><b>Meeting notes</b><span><button class="ntb" id="ntFull" title="Expand / shrink">⤢ Expand</button> <button class="ntb" id="ntX">✕</button></span></div>
 <div class="ntt"><button id="ntTabMe" class="on">📝 My notes</button><button id="ntTabDraw">✏️ Draw</button><button id="ntTabAll">👥 Shared<span class="ntd hidden" id="ntTabDot"></span></button></div>
 <div class="ntpg" id="ntPg"><button class="ntb" id="ntPrev" title="Previous page">◀</button><select id="ntSel"></select><button class="ntb" id="ntNext" title="Next page">▶</button><button class="ntb" id="ntAdd">＋ Page</button><button class="ntb" id="ntDel" title="Delete page">🗑</button></div>
 <div class="ntp" id="ntPaneMe"><textarea id="ntMine" placeholder="Only you can see these notes. They are saved in this browser."></textarea>
@@ -73,19 +76,26 @@ panel.innerHTML = `<div class="nth"><b>Meeting notes</b><button class="ntb" id="
 $('side').before(panel);
 cv = $('ntc'); g = cv.getContext('2d');
 
+let full = false;
+function sync() {
+  panel.classList.toggle('wide', tab === 'draw' && !full); panel.classList.toggle('full', full);
+  $('ntFull').textContent = full ? '⤡ Shrink' : '⤢ Expand';
+}
 function setTab(t) {
   tab = t;
   [['me', 'Me'], ['draw', 'Draw'], ['all', 'All']].forEach(([k, s]) => { $('ntPane' + s).classList.toggle('hidden', t !== k); $('ntTab' + s).classList.toggle('on', t === k); });
   $('ntPg').classList.toggle('hidden', t === 'all');                   // pages apply to My notes and Draw only
   if (t === 'all') { $('ntTabDot').classList.add('hidden'); $('ntList').scrollTop = 1e9; }
-  if (t === 'draw') redraw();
+  sync(); if (t === 'draw') redraw();
 }
 function setOpen(v) {
   open = v; panel.classList.toggle('hidden', !v); btn.classList.toggle('act', v);
-  if (v) { $('ntDot').classList.add('hidden'); setTab(tab); }
+  if (v) { $('ntDot').classList.add('hidden'); setTab(tab); } else { full = false; sync(); }
 }
 btn.onclick = () => { if (!room) return toast('Join a meeting first'); setOpen(!open); };
 $('ntX').onclick = () => setOpen(false);
+$('ntFull').onclick = () => { full = !full; sync(); };
+addEventListener('keydown', e => { if (e.key === 'Escape' && full) { full = false; sync(); } });
 $('ntTabMe').onclick = () => setTab('me'); $('ntTabDraw').onclick = () => setTab('draw'); $('ntTabAll').onclick = () => setTab('all');
 
 /* ---------- Private notebook (localStorage, per room) ---------- */
@@ -139,12 +149,12 @@ $('ntStamp').onclick = () => {
 /* ---------- Drawing pad (one drawing per page) ---------- */
 function draw(c, s) {
   const p = s.pts; if (!p || p.length < 2) return;
-  c.save(); c.lineCap = c.lineJoin = 'round'; c.lineWidth = s.tool === 'eraser' ? s.size * 3 : s.size; c.strokeStyle = c.fillStyle = s.color;
+  c.save(); c.lineCap = c.lineJoin = 'round'; c.lineWidth = (s.tool === 'eraser' ? s.size * 3 : s.size) * SC; c.strokeStyle = c.fillStyle = s.color;
   c.globalCompositeOperation = s.tool === 'eraser' ? 'destination-out' : 'source-over';
   if (s.tool === 'pen' || s.tool === 'eraser') {
     c.beginPath(); c.moveTo(p[0] * W, p[1] * H); if (p.length === 2) c.lineTo(p[0] * W + .01, p[1] * H);
     for (let i = 2; i < p.length; i += 2) c.lineTo(p[i] * W, p[i + 1] * H); c.stroke();
-  } else if (s.tool === 'text') { c.font = (s.size * 4 + 10) + 'px sans-serif'; c.textBaseline = 'top'; c.fillText(s.text || '', p[0] * W, p[1] * H); }
+  } else if (s.tool === 'text') { c.font = ((s.size * 4 + 10) * SC) + 'px sans-serif'; c.textBaseline = 'top'; c.fillText(s.text || '', p[0] * W, p[1] * H); }
   else if (p.length >= 4) {
     const x0 = p[0] * W, y0 = p[1] * H, x1 = p[2] * W, y1 = p[3] * H; c.beginPath();
     if (s.tool === 'line') { c.moveTo(x0, y0); c.lineTo(x1, y1); }
