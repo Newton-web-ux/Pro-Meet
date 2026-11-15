@@ -69,7 +69,7 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
     </svg>
     <span>Pro <em>Meet</em></span>
   </a>
-  <div style="display:flex;align-items:center;gap:14px"><a class="hlink" href="payment.html">Pricing</a><div class="conn"><span class="dot" id="cdot"></span><span id="ctxt">Connecting…</span></div><button class="btn alt" id="authBtn" style="padding:8px 14px">Sign in with Google</button></div>
+  <div style="display:flex;align-items:center;gap:14px"><a class="hlink" href="payment.html" id="planTag">Pricing</a><div class="conn"><span class="dot" id="cdot"></span><span id="ctxt">Connecting…</span></div><button class="btn alt" id="authBtn" style="padding:8px 14px">Sign in with Google</button></div>
 </header>
 <main>
   <h1 id="hello">Welcome</h1>
@@ -94,7 +94,7 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
       </div>
 
       <div class="card">
-        <h2>My meeting rooms <small>live status</small></h2>
+        <h2>My meeting rooms <small id="roomsCap">live status</small></h2>
         <div id="rooms"></div>
       </div>
 
@@ -140,6 +140,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, sig
 import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { SCRIPT_URL } from './meet-config.js';
+import { getPlan, allows, upgradeMsg } from './plan.js';
 
 const app = initializeApp({
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA", authDomain: "pro-meet-9e44e.firebaseapp.com", projectId: "pro-meet-9e44e",
@@ -152,6 +153,12 @@ const $ = id => document.getElementById(id), K = 'pm_dash', GAP = 30 * 60000, MA
 let S = { name: '', rooms: [], sched: [], hist: [] };
 try { S = { ...S, ...JSON.parse(localStorage.getItem(K) || '{}') }; } catch {}
 let uref = null, pastN = 10;
+
+/* ---------- plan limits (from plan.js / Apps Script) ---------- */
+let PLAN = { plan: 'free', limits: { meetings: 5, meetingMin: 30 }, expires: null };
+const refreshPlan = async force => { PLAN = await getPlan(force); render(); };
+const roomsFull = () => !allows(PLAN.limits, 'meetings', S.rooms.length);
+
 const save = () => {
   try { localStorage.setItem('pm_name', S.name || ''); } catch {}
   if (uref) setDoc(uref, S).catch(() => toast('Cloud save failed. Publish the new Firestore rules.'));
@@ -202,7 +209,7 @@ onAuthStateChanged(auth, u => {
       mergeJoins(); syncSubs(); render(); reloadFiles();
     }, () => toast('Could not load cloud data. Publish the new Firestore rules.'));
   }
-  syncSubs(); reloadFiles();
+  syncSubs(); reloadFiles(); refreshPlan(true);
 });
 $('authBtn').onclick = async () => {
   if (auth.currentUser && !auth.currentUser.isAnonymous) { await signOut(auth); return; }
@@ -215,7 +222,7 @@ function mergeJoins() {
   j.forEach(x => {
     if (!x || !x.code) return;
     if (!S.hist.some(h => h.code === x.code && Math.abs(h.ts - x.ts) < 30000)) { S.hist.push({ code: x.code, ts: x.ts }); ch = true; }
-    if (!S.rooms.some(r => r.code === x.code)) { addRoom(x.code); ch = true; }
+    if (!S.rooms.some(r => r.code === x.code) && addRoom(x.code)) ch = true;
   });
   if (ch) { S.hist = S.hist.slice(-300); save(); syncSubs(); render(); }
 }
@@ -313,14 +320,16 @@ async function details(m) {
 /* ---------- actions ---------- */
 function addRoom(code, title) {
   const r = S.rooms.find(x => x.code === code);
-  if (r) { if (title && !r.title) r.title = title; return; }
-  S.rooms.unshift({ code, title: title || '' }); S.rooms = S.rooms.slice(0, MAXROOMS);
+  if (r) { if (title && !r.title) r.title = title; return true; }
+  if (roomsFull()) return false;
+  S.rooms.unshift({ code, title: title || '' }); S.rooms = S.rooms.slice(0, MAXROOMS); return true;
 }
 function go(code, title) {
   code = clean(code); if (!code) return toast('Enter a room code');
   S.name = $('name').value.trim() || S.name;
   S.hist.push({ code, ts: Date.now() }); S.hist = S.hist.slice(-300);
-  addRoom(code, title); save(); syncSubs(); render();
+  if (!addRoom(code, title)) toast(upgradeMsg(PLAN, 'meetings') + ' This room was not saved to your list.');
+  save(); syncSubs(); render();
   window.open(link(code), '_blank');
 }
 const copy = c => { navigator.clipboard.writeText(link(c)).then(() => toast('Invite link copied'), () => toast(link(c))); };
@@ -331,13 +340,15 @@ function ics(m) {
     'DESCRIPTION:Join: ' + link(m.code), 'URL:' + link(m.code), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   const a = el('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/calendar' })); a.download = 'meeting.ics'; a.click();
 }
-$('startBtn').onclick = () => go(newCode());
+$('startBtn').onclick = () => roomsFull() ? toast(upgradeMsg(PLAN, 'meetings')) : go(newCode());
 $('joinBtn').onclick = () => go($('code').value);
 $('code').onkeydown = e => { if (e.key === 'Enter') go($('code').value); };
 $('name').onchange = () => { S.name = $('name').value.trim(); save(); render(); };
 $('schedBtn').onclick = () => {
   const start = new Date($('sWhen').value).getTime();
   if (!start || start < Date.now() - 60000) return toast('Pick a date and time in the future');
+  if (roomsFull()) return toast(upgradeMsg(PLAN, 'meetings'));
+  if (PLAN.limits.meetingMin != null && +$('sDur').value > PLAN.limits.meetingMin) return toast('Your plan allows meetings up to ' + PLAN.limits.meetingMin + ' minutes.');
   const m = { id: Date.now().toString(36), title: $('sTitle').value.trim() || 'Team meeting', start, dur: +$('sDur').value, code: newCode() };
   S.sched.push(m); addRoom(m.code, m.title); save(); syncSubs(); render(); $('sTitle').value = ''; toast('Meeting scheduled');
 };
@@ -356,6 +367,9 @@ function render() {
   $('sOn').textContent = rooms.reduce((a, r) => a + r.p.length, 0);
   $('sUp').textContent = up.length;
   $('sWeek').textContent = S.hist.filter(x => x.ts > now - 7 * 864e5).length;
+  $('planTag').textContent = PLAN.plan === 'free' ? 'Free plan · Upgrade' : PLAN.plan[0].toUpperCase() + PLAN.plan.slice(1) + ' plan';
+  $('roomsCap').textContent = S.rooms.length + (PLAN.limits.meetings == null ? '' : ' / ' + PLAN.limits.meetings) + ' rooms';
+  [...$('sDur').options].forEach(o => o.disabled = PLAN.limits.meetingMin != null && +o.value > PLAN.limits.meetingMin);
 
   const R = $('rooms'); R.replaceChildren();
   if (!rooms.length) R.append(el('div', 'empty', 'No rooms yet. Start an instant meeting or schedule one.'));
@@ -413,7 +427,7 @@ const d0 = new Date(Date.now() + 36e5); d0.setMinutes(0, 0, 0);
 $('sWhen').value = new Date(d0 - d0.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 mergeJoins(); render(); syncSubs();
 addEventListener('storage', e => { if (e.key === 'pm_joins') mergeJoins(); });
-addEventListener('focus', mergeJoins);
+addEventListener('focus', () => { mergeJoins(); refreshPlan(); });
 </script>
 </body>
 </html>
