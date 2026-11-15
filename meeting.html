@@ -135,8 +135,9 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDocs, onSnapshot, query, where, orderBy }
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getPlan } from './plan.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA",
@@ -155,7 +156,8 @@ const STALE = 45000;
 const AUDIO_C = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
 
 let me, room, localStream, screenTrack = null, localView, actx, pinned = null, chatOpen = false, unread = 0, firstSnap = true;
-let partCol, sigCol, msgCol, myRef;
+let partCol, sigCol, msgCol, myRef, metaRef, meta = null, myLimit = 30, myBoards = 1, myPages = 5;   // my plan's limits: meeting minutes, whiteboards, pages per whiteboard (null = unlimited)
+getPlan();   // start loading the plan early
 const roster = {}, peers = {}, speakers = {}, unsubs = [];
 let chain = Promise.resolve();
 
@@ -185,12 +187,14 @@ $('joinBtn').onclick = async () => {
     await setPersistence(auth, browserSessionPersistence);   // unique identity per tab
     const cred = await signInAnonymously(auth);
     me = { uid: cred.user.uid, name };
+    const pl = await Promise.race([getPlan(), new Promise(r => setTimeout(() => r(null), 5000))]);
+    if (pl) { myLimit = pl.limits.meetingMin; myBoards = pl.limits.boards; myPages = pl.limits.pages; }
     await setupAudio();
     await enter();
     detectHeadphones();
   } catch (e) {
     console.error(e);
-    $('err').textContent = 'Could not join (' + (e.code || e.message) + '). Enable Anonymous Auth + Firestore and publish the rules.';
+    $('err').textContent = e.limit ? e.message : 'Could not join (' + (e.code || e.message) + '). Enable Anonymous Auth + Firestore and publish the rules.';
     $('joinBtn').disabled = false;
     $('lobby').classList.remove('hidden'); $('meeting').classList.add('hidden');
   }
@@ -204,6 +208,18 @@ async function enter() {
   sigCol = collection(db, 'rooms', room, 'signals');
   msgCol = collection(db, 'rooms', room, 'messages');
   myRef = doc(partCol, me.uid);
+
+  /* Plan limit: the meeting length comes from whoever started the meeting. A meeting that hit its limit
+     cannot be restarted until it has been idle for 30 minutes. */
+  metaRef = doc(db, 'rooms', room);
+  const liveNow = (await getDocs(partCol).catch(() => ({ docs: [] }))).docs.filter(d => Date.now() - d.data().seen < STALE);
+  try { const s = await getDoc(metaRef); meta = s.exists() ? s.data() : null; } catch { meta = null; }
+  if ((!liveNow.length && (!meta || Date.now() - (meta.lastSeen || 0) > 30 * 60000)) || !meta) {
+    meta = { hostUid: me.uid, hostName: me.name, limitMin: myLimit, boards: myBoards, pages: myPages, startedAt: Date.now(), lastSeen: Date.now() };
+    setDoc(metaRef, meta).catch(() => {});
+  }
+  if (meta.limitMin != null && Date.now() >= meta.startedAt + meta.limitMin * 60000)
+    throw Object.assign(new Error('This meeting reached its ' + meta.limitMin + '-minute limit. Upgrade to Pro or Enterprise for longer meetings.'), { limit: true });
 
   const mine = { name: me.name, audio: !!track('audio')?.enabled, video: !!track('video')?.enabled, hand: false, sharing: false, joinedAt: Date.now(), seen: Date.now() };
   roster[me.uid] = mine; paint(me.uid); watch(me.uid, localStream);
@@ -236,6 +252,9 @@ async function enter() {
     items.forEach(s => { deleteDoc(s.ref).catch(() => {}); chain = chain.then(() => onSignal(s)).catch(console.warn); });
   }));
 
+  // Meeting limit info (host may extend it after upgrading)
+  unsubs.push(onSnapshot(metaRef, s => { if (s.exists()) meta = s.data(); }, () => {}));
+
   // Persistent chat
   unsubs.push(onSnapshot(query(msgCol, orderBy('ts')), snap => {
     snap.docChanges().forEach(c => { if (c.type === 'added') { const m = c.doc.data(); addMsg(m); if (m.uid !== me.uid && !(chatOpen && !$('paneChat').classList.contains('hidden'))) bump(); } });
@@ -245,9 +264,29 @@ async function enter() {
   const t0 = Date.now();
   setInterval(() => {
     updateDoc(myRef, { seen: Date.now() }).catch(() => {});
+    updateDoc(metaRef, { lastSeen: Date.now() }).catch(() => {});
     for (const id in roster) if (id !== me.uid && Date.now() - roster[id].seen > STALE) deleteDoc(doc(partCol, id)).catch(() => {});
   }, 15000);
-  setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); $('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 1000);
+  let warned = 0, ending = false;
+  setInterval(async () => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    let txt = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+    if (meta && meta.limitMin != null) {
+      const left = meta.startedAt + meta.limitMin * 60000 - Date.now();
+      if (left > 0) txt += ' · ' + Math.ceil(left / 60000) + ' min left';
+      if (left > 60000 && left <= 300000 && warned < 1) { warned = 1; toast('5 minutes left on this plan\u2019s meeting limit'); }
+      if (left > 0 && left <= 60000 && warned < 2) { warned = 2; toast('1 minute left. Upgrade for longer meetings'); }
+      if (left <= 0 && !ending) {
+        ending = true;
+        const p = await getPlan(true).catch(() => null), lim = p ? p.limits.meetingMin : meta.limitMin;
+        if (meta.hostUid === me.uid && (lim == null || lim > meta.limitMin)) {          // host upgraded: extend
+          meta.limitMin = lim; updateDoc(metaRef, { limitMin: lim }).catch(() => {}); ending = false; return;
+        }
+        toast('Meeting time limit reached'); setTimeout(leave, 2500);
+      }
+    }
+    $('timer').textContent = txt;
+  }, 1000);
   syncButtons();
 }
 
