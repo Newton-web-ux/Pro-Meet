@@ -3,8 +3,12 @@
  * (LIMITS + approved payments in your sheet), never from the browser. Anyone who is not signed in
  * with Google, or whose plan expired, gets the Free limits.
  *
+ * Enforcement lives on the server: the Apps Script writes the meeting limits (rooms/{room}) and the
+ * plan snapshot (plans/{uid}) with a service account, and the Firestore rules read them. The values
+ * returned here are for display and for pre-checks only.
+ *
  * Usage in any page/module:
- *   import { getPlan, allows, upgradeMsg } from './plan.js';
+ *   import { getPlan, allows, upgradeMsg, googleToken } from './plan.js';
  *   const p = await getPlan();                          // { plan, billing, expires, limits }
  *   if (!allows(p.limits, 'boards', boards.length)) return toast(upgradeMsg(p, 'boards'));
  */
@@ -57,6 +61,15 @@ async function load(force) {
   } catch { return mem ? mem.p : free(); }
 }
 
+/* Firebase ID token of the Google account, or null for guests. It is sent to the Apps Script
+   (as "ptoken") so the server can look up the plan of the person who is hosting the meeting. */
+export async function googleToken() {
+  try {
+    const u = await firstUser();
+    return u && !u.isAnonymous && u.email ? await u.getIdToken() : null;
+  } catch { return null; }
+}
+
 /* count = how many the person already has. Unlimited (null) always passes. */
 export const allows = (limits, key, count) => limits[key] == null || count < limits[key];
 export const upgradeMsg = (p, key) => {
@@ -64,4 +77,4 @@ export const upgradeMsg = (p, key) => {
   return name + ' plan allows ' + n + ' ' + (LABEL[key] || key) + '. Upgrade on the Pricing page for more.';
 };
 
-window.PM = { getPlan, allows, upgradeMsg, FREE };
+window.PM = { getPlan, allows, upgradeMsg, googleToken, FREE };
