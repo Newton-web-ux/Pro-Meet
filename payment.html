@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plans and payment · Pro Meet</title>
+<meta name="description" content="Choose a Pro Meet plan and pay with GPay or any UPI app.">
+<meta name="theme-color" content="#0f1217">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%232563eb'/%3E%3Crect x='8' y='12.5' width='16' height='15' rx='4' fill='%23fff'/%3E%3Cpath d='M26.5 18 32.5 14v12l-6-4z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="site.css">
+<style>
+.hidden{display:none!important}
+.top{padding:56px 0 8px}
+.top h1{font-size:clamp(2rem,4.4vw,3.2rem);letter-spacing:-.035em;line-height:1.08}
+.top .sub{color:#b4bfd0;margin-top:12px;max-width:52ch;font-size:1.05rem}
+.bill{display:inline-flex;margin-top:26px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;gap:4px}
+.bill button{padding:9px 18px;border-radius:9px;font-size:14px;font-weight:600;color:var(--mut)}
+.bill button[aria-pressed=true]{background:var(--acc);color:#fff}
+.bill small{font-weight:500;opacity:.9;margin-left:4px}
+
+.banner{margin:26px 0 0;padding:14px 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:15px}
+.banner.ok{border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.08)}
+.banner.wait{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.08)}
+
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:28px}
+.plan{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px;display:flex;flex-direction:column;gap:6px;transition:border-color .15s}
+.plan.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc),0 20px 50px rgba(59,130,246,.12)}
+.plan h2{font-size:20px;letter-spacing:-.01em}
+.who{color:var(--mut);font-size:14px;min-height:42px}
+.price{display:flex;align-items:baseline;gap:8px;margin-top:10px}
+.price b{font-size:40px;letter-spacing:-.04em;line-height:1}
+.price span{color:var(--mut);font-size:15px}
+.sub2{color:var(--mut);font-size:13px;min-height:20px;margin-bottom:12px}
+.ticks{list-style:none;display:flex;flex-direction:column;gap:9px;margin:6px 0 24px;font-size:15px;color:#c3ccda}
+.ticks li{padding-left:24px;position:relative}.ticks li::before{content:"✓";position:absolute;left:0;color:var(--grn);font-weight:700}
+.plan .btn{margin-top:auto;width:100%}
+.plan .btn[disabled]{opacity:.55;cursor:default;filter:none}
+
+.co-h{margin:72px 0 22px;font-size:clamp(1.6rem,3vw,2.2rem);letter-spacing:-.03em}
+.co{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px}
+.panel h3{font-size:16px;margin-bottom:14px}
+.panel h3:not(:first-child){margin-top:28px}
+.sum div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.sum dt{color:var(--mut)}.sum dd{text-align:right;word-break:break-all}
+.sum .tot{border-bottom:0;font-weight:700;font-size:18px}.sum .tot dt{color:var(--txt)}
+.how{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:14px}
+.how li{counter-increment:s;padding-left:38px;position:relative;color:#c3ccda;font-size:15px}
+.how li::before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:#222a36;color:var(--acc);display:grid;place-items:center;font-weight:700;font-size:13px}
+.how b{color:var(--txt)}
+.link{color:var(--acc);font-size:14px;text-decoration:underline;background:none}
+.qrbox{background:#fff;padding:14px;border-radius:14px;width:fit-content;margin:0 auto;min-height:228px;min-width:228px;display:grid;place-items:center;color:#334155;font-size:13px;text-align:center}
+.qrbox img,.qrbox canvas{display:block}
+.amt{text-align:center;margin:16px 0 10px;font-size:16px}.amt b{font-size:20px}
+.upiid{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:14px}
+.upiid code{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;word-break:break-all}
+.btn.sm{padding:7px 12px;font-size:13px}.btn.wide{width:100%}
+.upi-btn{display:none;margin-bottom:12px}
+@media(max-width:760px),(pointer:coarse){.upi-btn{display:flex}}
+.fine{color:var(--mut);font-size:13px;margin-top:8px}
+.fine code{color:var(--txt)}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+label.f{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+#utr{letter-spacing:.04em;text-transform:uppercase}
+.msg{margin-top:14px;font-size:14px;min-height:20px}.msg.ok{color:var(--grn)}.msg.err{color:#ff7b7b}
+.gate{text-align:center;padding:26px 6px}.gate p{color:#b4bfd0;margin-bottom:18px}
+
+@media(max-width:980px){.plans{grid-template-columns:1fr}.co{grid-template-columns:1fr}.who{min-height:0}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 40 40">
+    <rect width="40" height="40" rx="11" fill="url(#lg)"/>
+    <rect x="8" y="12.5" width="16" height="15" rx="4" fill="#fff"/>
+    <path d="M26.5 18 32.5 14v12l-6-4z" fill="#fff" fill-opacity=".92"/>
+    <circle cx="33" cy="7" r="3.5" fill="#22c55e" stroke="#0f1217" stroke-width="2"/>
+  </symbol>
+</svg>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="index.html" aria-label="Pro Meet home"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a>
+    <nav class="links" aria-label="Main"><a href="index.html#features">Features</a><a href="index.html#faq">FAQ</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a></nav>
+    <div class="nav-cta"><a class="btn alt" href="dashboard.html">Dashboard</a></div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="wrap top">
+    <h1>Choose your plan</h1>
+    <p class="sub">Start free and upgrade when you need longer meetings and more whiteboards.</p>
+    <div class="bill" role="group" aria-label="Billing period">
+      <button type="button" data-b="monthly" aria-pressed="true">Monthly</button>
+      <button type="button" data-b="yearly" aria-pressed="false">Yearly<small id="saveMax"></small></button>
+    </div>
+    <div id="banner" class="banner hidden" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="wrap">
+    <div class="plans">
+      <article class="plan" id="p-free">
+        <h2>Free</h2>
+        <p class="who">For trying Pro Meet with a small group.</p>
+        <div class="price"><b>₹0</b><span>forever</span></div>
+        <p class="sub2">No card or UPI needed</p>
+        <ul class="ticks">
+          <li>Meetings up to 30 minutes</li>
+          <li>1 whiteboard with 5 pages</li>
+          <li>Up to 5 meetings</li>
+          <li>Up to 5 secluded meetings</li>
+        </ul>
+        <a class="btn alt" id="b-free" href="dashboard.html">Continue free</a>
+      </article>
+
+      <article class="plan sel" id="p-pro">
+        <h2>Pro</h2>
+        <p class="who">For regular meetings, classes and workshops.</p>
+        <div class="price"><b id="pr-pro">₹149</b><span id="pu-pro">/ month</span></div>
+        <p class="sub2" id="ps-pro">Billed monthly</p>
+        <ul class="ticks">
+          <li>Meetings up to 2 hours</li>
+          <li>5 whiteboards with 20 pages</li>
+          <li>Up to 20 meetings</li>
+          <li>Up to 20 secluded meetings</li>
+        </ul>
+        <button class="btn" id="b-pro" data-k="pro" type="button">Choose Pro</button>
+      </article>
+
+      <article class="plan" id="p-enterprise">
+        <h2>Enterprise</h2>
+        <p class="who">For teams that need no limits.</p>
+        <div class="price"><b id="pr-enterprise">₹399</b><span id="pu-enterprise">/ month</span></div>
+        <p class="sub2" id="ps-enterprise">Billed monthly</p>
+        <ul class="ticks">
+          <li>Unlimited meeting duration</li>
+          <li>Unlimited whiteboards with unlimited pages</li>
+          <li>Unlimited meetings</li>
+          <li>Unlimited secluded meetings</li>
+        </ul>
+        <button class="btn" id="b-enterprise" data-k="enterprise" type="button">Choose Enterprise</button>
+      </article>
+    </div>
+
+    <h2 class="co-h" id="checkout">Complete your upgrade</h2>
+    <div class="co">
+      <div class="panel">
+        <h3>Your order</h3>
+        <dl class="sum">
+          <div><dt>Plan</dt><dd id="o-plan">Pro</dd></div>
+          <div><dt>Billing</dt><dd id="o-bill">Monthly</dd></div>
+          <div><dt>Valid for</dt><dd id="o-days">30 days</dd></div>
+          <div><dt>Account</dt><dd id="o-acc">Checking…</dd></div>
+          <div class="tot"><dt>Total</dt><dd id="o-total">₹149</dd></div>
+        </dl>
+        <h3>How it works</h3>
+        <ol class="how">
+          <li><b>Pay with UPI.</b> Scan the QR code with GPay or any UPI app, or tap the pay button on your phone.</li>
+          <li><b>Submit the transaction ID.</b> Copy it from your payment details and paste it here.</li>
+          <li><b>We verify it.</b> We match it with our bank records by hand, then switch your plan on. This page shows the status.</li>
+        </ol>
+        <p class="fine" style="margin-top:20px">By paying you agree to the <a href="terms.html">Terms of Use</a> and <a href="privacy.html">Privacy Policy</a>.</p>
+      </div>
+
+      <div class="panel">
+        <div id="gate" class="gate">
+          <p id="gateTxt">Checking your account…</p>
+          <button class="btn lg hidden" id="signin" type="button">Sign in with Google</button>
+        </div>
+
+        <div id="pay" class="hidden">
+          <div class="qrbox" id="qr" aria-label="UPI QR code"></div>
+          <p class="amt">Pay <b id="p-amt">₹149</b> to <b id="p-name"></b></p>
+          <div class="upiid"><code id="upiId"></code><button class="btn alt sm" id="copyUpi" type="button">Copy</button></div>
+          <a class="btn lg wide upi-btn" id="upiLink" href="#">Pay with a UPI app</a>
+          <p class="fine" style="text-align:center">Payment note <code id="refNote"></code> is added for you. Keep it if your app lets you edit it.</p>
+          <hr>
+          <label class="f" for="utr">UPI transaction ID</label>
+          <input id="utr" placeholder="e.g. 412345678901" maxlength="30" autocomplete="off" spellcheck="false" inputmode="text">
+          <p class="fine">In GPay, open the payment and copy the UPI transaction ID. It is usually 12 digits.</p>
+          <button class="btn lg wide" id="submit" type="button" style="margin-top:16px">I've paid · Submit for approval</button>
+          <div class="msg" id="msg" role="status" aria-live="polite"></div>
+          <p class="fine">Only submit after you have paid. Each request is checked against our bank records.</p>
+          <p class="fine"><button class="link" id="signout" type="button">Use a different Google account</button></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div><a class="logo" href="index.html" aria-label="Pro Meet home"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a><p>Video meetings with a whiteboard, notes and host controls built in.</p></div>
+      <div><h4>Product</h4><a href="index.html#features">Features</a><a href="index.html#how">How it works</a><a href="index.html#trust">Security</a><a href="index.html#faq">FAQ</a></div>
+      <div><h4>Get started</h4><a href="dashboard.html">Dashboard</a><a href="meeting.html">Join a meeting</a></div>
+      <div><h4>Legal</h4><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></div>
+    </div>
+    <div class="foot-base">© <span id="yr">2026</span> Pro Meet. All rights reserved.</div>
+  </div>
+</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { SCRIPT_URL } from './meet-config.js';
+
+/* ================= CONFIG ================= */
+const CFG = { upiId: 'banerjeearnab.live@oksbi', payee: 'Newtonian Academy' };      // who receives the money (shown in the user's UPI app)
+const PLANS = { pro: { name: 'Pro', monthly: 149, yearly: 999 }, enterprise: { name: 'Enterprise', monthly: 399, yearly: 1999 } };
+const DAYS = { monthly: 30, yearly: 365 };                                           // keep in sync with DAYS in the Apps Script
+const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+
+/* Same Firebase app name as the dashboard ('dash'), so a Google sign-in there carries over to this page. */
+const app = initializeApp({
+  apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA", authDomain: "pro-meet-9e44e.firebaseapp.com", projectId: "pro-meet-9e44e",
+  storageBucket: "pro-meet-9e44e.firebasestorage.app", messagingSenderId: "360559567109", appId: "1:360559567109:web:0f9bd0d407db2a5365d76c"
+}, 'dash');
+const auth = getAuth(app);
+
+const $ = id => document.getElementById(id);
+const money = n => '₹' + n.toLocaleString('en-IN');
+const cap = s => s[0].toUpperCase() + s.slice(1);
+const dateOf = ms => new Date(ms).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const ERR = {
+  unauthorized: 'Your sign-in expired. Please sign in again.',
+  signin: 'Please sign in with a verified Google account to pay.',
+  duplicate: 'That transaction ID has already been submitted.',
+  limit: 'You already have 3 payments waiting for verification.',
+  'bad transaction id': 'That transaction ID does not look right. Please check it.',
+  'bad plan': 'Pick a plan and billing period first.'
+};
+
+let plan = 'pro', billing = 'monthly', user = null, authReady = false, cur = 'free', busy = false, qrDrawn = '';
+const ref = (() => {                                              // short code that links this payment to this page visit
+  let r = ''; try { r = sessionStorage.getItem('pm_ref') || ''; } catch {}
+  if (!r) { r = 'PM' + Math.random().toString(36).slice(2, 8).toUpperCase(); try { sessionStorage.setItem('pm_ref', r); } catch {} }
+  return r;
+})();
+
+/* ---------- Plans and billing toggle ---------- */
+function renderPlans() {
+  let best = 0;
+  for (const k in PLANS) {
+    const p = PLANS[k], yr = billing === 'yearly', off = p.monthly * 12 - p.yearly;
+    best = Math.max(best, Math.round(off / (p.monthly * 12) * 100));
+    $('pr-' + k).textContent = money(yr ? p.yearly : p.monthly);
+    $('pu-' + k).textContent = yr ? '/ year' : '/ month';
+    $('ps-' + k).textContent = yr ? '≈ ' + money(Math.round(p.yearly / 12)) + ' a month · save ' + money(off) : 'Billed monthly';
+    $('p-' + k).classList.toggle('sel', plan === k);
+    const b = $('b-' + k); b.textContent = (cur === k ? 'Extend ' : 'Choose ') + p.name;
+  }
+  $('p-free').classList.remove('sel');
+  $('saveMax').textContent = ' · save up to ' + best + '%';
+  document.querySelectorAll('.bill button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.b === billing)));
+  const free = $('b-free'); free.textContent = cur === 'free' ? 'Your current plan' : 'Continue free';
+}
+document.querySelectorAll('.bill button').forEach(b => b.onclick = () => { billing = b.dataset.b; renderAll(); });
+document.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { plan = b.dataset.k; renderAll(); $('checkout').scrollIntoView({ behavior: 'smooth' }); });
+
+/* ---------- Checkout panel ---------- */
+const amount = () => PLANS[plan][billing];
+const note = () => 'ProMeet ' + ref + ' ' + (plan === 'pro' ? 'Pro' : 'Ent') + '-' + billing[0].toUpperCase();
+const upiUrl = () => 'upi://pay?pa=' + CFG.upiId + '&pn=' + encodeURIComponent(CFG.payee) + '&am=' + amount() + '&cu=INR&tn=' + encodeURIComponent(note());
+
+function renderCheckout() {
+  $('o-plan').textContent = PLANS[plan].name; $('o-bill').textContent = cap(billing); $('o-days').textContent = DAYS[billing] + ' days';
+  $('o-total').textContent = $('p-amt').textContent = money(amount());
+  $('o-acc').textContent = user ? user.email : authReady ? 'Not signed in' : 'Checking…';
+  $('p-name').textContent = CFG.payee; $('upiId').textContent = CFG.upiId; $('refNote').textContent = note();
+  $('upiLink').href = upiUrl();
+  $('gate').classList.toggle('hidden', !!user);
+  $('pay').classList.toggle('hidden', !user);
+  $('signin').classList.toggle('hidden', !authReady || !!user);
+  $('gateTxt').textContent = !authReady ? 'Checking your account…' : 'Sign in with Google first, so your payment is attached to your account.';
+  if (user) drawQR();
+}
+async function drawQR() {
+  const text = upiUrl(); if (qrDrawn === text) return; qrDrawn = text;
+  const box = $('qr'); box.textContent = 'Loading QR code…';
+  try {
+    if (!window.QRCode) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = QR_LIB; s.onload = res; s.onerror = rej; document.head.append(s); });
+    if (qrDrawn !== text) return;
+    box.textContent = ''; new QRCode(box, { text, width: 200, height: 200, colorDark: '#0b0e13', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch { qrDrawn = ''; box.textContent = 'The QR code could not load. Pay to the UPI ID below instead.'; }
+}
+$('copyUpi').onclick = async () => { try { await navigator.clipboard.writeText(CFG.upiId); $('copyUpi').textContent = 'Copied'; setTimeout(() => $('copyUpi').textContent = 'Copy', 1500); } catch {} };
+
+/* ---------- Account ---------- */
+onAuthStateChanged(auth, u => {
+  user = u && !u.isAnonymous && u.email ? u : null; authReady = true; renderAll();
+  if (user) refreshStatus(); else { cur = 'free'; showBanner(''); renderAll(); }
+});
+$('signin').onclick = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { say('Sign-in failed: ' + (e.code || e.message), 'err'); } };
+$('signout').onclick = () => signOut(auth);
+
+async function api(body) {
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'failed'); return j;
+}
+const ready = () => SCRIPT_URL && !SCRIPT_URL.includes('PASTE');
+function showBanner(html, kind) { const b = $('banner'); b.className = 'banner' + (html ? ' ' + (kind || '') : ' hidden'); b.textContent = html; }
+function say(t, kind) { const m = $('msg'); m.textContent = t; m.className = 'msg ' + (kind || ''); }
+
+async function refreshStatus() {
+  if (!ready() || !user) return;
+  try {
+    const j = await api({ action: 'plan' }); cur = j.plan || 'free';
+    if (cur !== 'free') showBanner('✔ You are on ' + cap(cur) + ' (' + j.billing + '). Active until ' + dateOf(j.expires) + '.', 'ok');
+    else if (j.pending) showBanner('⏳ Payment waiting for verification: ' + cap(j.pending.plan) + ' ' + j.pending.billing + ' · reference ' + j.pending.ref + '. Your plan switches on once we confirm it.', 'wait');
+    else showBanner('');
+    if (cur !== 'free' && j.pending) showBanner($('banner').textContent + ' A newer payment is waiting for verification.', 'ok');
+  } catch { /* status is optional; the page still works */ }
+  renderAll();
+}
+
+/* ---------- Submit the payment ---------- */
+$('utr').addEventListener('input', e => { e.target.value = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase(); });
+$('submit').onclick = async () => {
+  if (busy) return; const utr = $('utr').value.trim();
+  if (!ready()) return say('Payments are not set up yet. Add your Apps Script URL to meet-config.js.', 'err');
+  if (!/^[A-Z0-9]{10,30}$/.test(utr)) return say('Enter the UPI transaction ID from your payment details.', 'err');
+  busy = true; $('submit').disabled = true; $('submit').textContent = 'Submitting…'; say('');
+  try {
+    await api({ action: 'pay', plan, billing, utr, ref });
+    say('Payment submitted ✔ We will verify it and switch your plan on.', 'ok'); $('utr').value = '';
+    refreshStatus();
+  } catch (e) { say(ERR[e.message] || 'Submission failed (' + e.message + '). Please try again.', 'err'); }
+  busy = false; $('submit').disabled = false; $('submit').textContent = "I've paid · Submit for approval";
+};
+
+function renderAll() { renderPlans(); renderCheckout(); }
+
+/* Links like payment.html?plan=enterprise&billing=yearly preselect a plan */
+const q = new URLSearchParams(location.search);
+if (PLANS[q.get('plan')]) plan = q.get('plan');
+if (DAYS[q.get('billing')]) billing = q.get('billing');
+$('yr').textContent = new Date().getFullYear();
+renderAll();
+</script>
+</body>
+</html>
