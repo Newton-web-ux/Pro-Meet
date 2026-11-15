@@ -137,7 +137,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, signInAnonymously, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getPlan } from './plan.js';
+import { getPlan, googleToken } from './plan.js';
+import { SCRIPT_URL } from './meet-config.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA",
@@ -150,13 +151,21 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app), db = getFirestore(app);
 
+/* Calls the Apps Script. "token" proves who this tab is; "ptoken" (Google sign-in, if any) lets the server look up the host's plan. */
+async function gs(body) {
+  if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE')) throw new Error('server not configured');
+  const token = await auth.currentUser.getIdToken(), ptoken = await googleToken();
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token, ptoken }) });
+  const j = await r.json(); if (!j.ok) throw new Error(j.error || 'failed'); return j;
+}
+
 const $ = id => document.getElementById(id);
 const ICE = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
 const STALE = 45000;
 const AUDIO_C = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
 
 let me, room, localStream, screenTrack = null, localView, actx, pinned = null, chatOpen = false, unread = 0, firstSnap = true;
-let partCol, sigCol, msgCol, myRef, metaRef, meta = null, myLimit = 30, myBoards = 1, myPages = 5;   // my plan's limits: meeting minutes, whiteboards, pages per whiteboard (null = unlimited)
+let partCol, sigCol, msgCol, myRef, metaRef, meta = null;   // meta = the room's limits (minutes, whiteboards, pages), written only by the Apps Script
 getPlan();   // start loading the plan early
 const roster = {}, peers = {}, speakers = {}, unsubs = [];
 let chain = Promise.resolve();
@@ -187,8 +196,6 @@ $('joinBtn').onclick = async () => {
     await setPersistence(auth, browserSessionPersistence);   // unique identity per tab
     const cred = await signInAnonymously(auth);
     me = { uid: cred.user.uid, name };
-    const pl = await Promise.race([getPlan(), new Promise(r => setTimeout(() => r(null), 5000))]);
-    if (pl) { myLimit = pl.limits.meetingMin; myBoards = pl.limits.boards; myPages = pl.limits.pages; }
     await setupAudio();
     await enter();
     detectHeadphones();
@@ -209,15 +216,12 @@ async function enter() {
   msgCol = collection(db, 'rooms', room, 'messages');
   myRef = doc(partCol, me.uid);
 
-  /* Plan limit: the meeting length comes from whoever started the meeting. A meeting that hit its limit
-     cannot be restarted until it has been idle for 30 minutes. */
+  /* Plan limit: the server (Apps Script) decides the meeting length from the host's plan and is the only
+     writer of the room record. A meeting that hit its limit cannot be restarted until it has been idle
+     for 30 minutes. */
   metaRef = doc(db, 'rooms', room);
-  const liveNow = (await getDocs(partCol).catch(() => ({ docs: [] }))).docs.filter(d => Date.now() - d.data().seen < STALE);
-  try { const s = await getDoc(metaRef); meta = s.exists() ? s.data() : null; } catch { meta = null; }
-  if ((!liveNow.length && (!meta || Date.now() - (meta.lastSeen || 0) > 30 * 60000)) || !meta) {
-    meta = { hostUid: me.uid, hostName: me.name, limitMin: myLimit, boards: myBoards, pages: myPages, startedAt: Date.now(), lastSeen: Date.now() };
-    setDoc(metaRef, meta).catch(() => {});
-  }
+  try { meta = (await gs({ action: 'startRoom', room, name: me.name })).meta; }
+  catch (e) { throw Object.assign(new Error('Could not start the meeting (' + e.message + ').'), { limit: true }); }
   if (meta.limitMin != null && Date.now() >= meta.startedAt + meta.limitMin * 60000)
     throw Object.assign(new Error('This meeting reached its ' + meta.limitMin + '-minute limit. Upgrade to Pro or Enterprise for longer meetings.'), { limit: true });
 
@@ -278,9 +282,10 @@ async function enter() {
       if (left > 0 && left <= 60000 && warned < 2) { warned = 2; toast('1 minute left. Upgrade for longer meetings'); }
       if (left <= 0 && !ending) {
         ending = true;
-        const p = await getPlan(true).catch(() => null), lim = p ? p.limits.meetingMin : meta.limitMin;
-        if (meta.hostUid === me.uid && (lim == null || lim > meta.limitMin)) {          // host upgraded: extend
-          meta.limitMin = lim; updateDoc(metaRef, { limitMin: lim }).catch(() => {}); ending = false; return;
+        if (meta.hostUid === me.uid) {                                               // host may have upgraded: ask the server to extend
+          await getPlan(true).catch(() => null);
+          const j = await gs({ action: 'extendRoom', room }).catch(() => null);
+          if (j && (j.meta.limitMin == null || j.meta.limitMin > meta.limitMin)) { meta = j.meta; ending = false; return; }
         }
         toast('Meeting time limit reached'); setTimeout(leave, 2500);
       }
