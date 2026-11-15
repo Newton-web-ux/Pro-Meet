@@ -1,16 +1,23 @@
-// whiteboard.js - shared multi-page whiteboard for Pro Meet: live sync through Firestore, export PNG to your Google Drive.
+// whiteboard.js - shared multi-board, multi-page whiteboard for Pro Meet: live sync through Firestore, export PNG to your Google Drive.
+// Plan limits (boards, pages per board) come from plan.js: the room's plan or yours, whichever is higher.
 import { getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SCRIPT_URL } from "./meet-config.js";
+import { getPlan, allows, FREE } from "./plan.js";
 
-const $ = id => document.getElementById(id), W = 1600, H = 900, MAXP = 30;
-const S = new Map();                                   // stroke id -> stroke data (all pages)
-const unseen = new Set();                              // pages where others drew while I was elsewhere
-let db, auth, uid, room, col, metaRef, cv, g, tool = 'pen', color = '#111111', size = 5, cur = null, open = false, started = false, firstSnap = true, lastNote = 0;
-let page = 0, metaPages = 1, metaFirst = true;
+const $ = id => document.getElementById(id), W = 1600, H = 900, MAXP = 100, MAXB = 50;   // hard caps (also "unlimited" on Enterprise)
+const S = new Map();                                   // stroke id -> stroke data (all boards and pages)
+const unseen = new Set();                              // "board:page" keys where others drew while I was elsewhere
+let db, auth, uid, room, col, cv, g, tool = 'pen', color = '#111111', size = 5, cur = null, open = false, started = false, firstSnap = true, lastNote = 0;
+let page = 0, board = 0, metaPages = { 0: 1 }, metaFirst = true;
+let LIM = { boards: FREE.boards, pages: FREE.pages };  // effective limits for this room (null = unlimited)
 const pg = d => d.page | 0;                            // strokes without a page belong to page 1
-const pageCount = () => { let n = Math.max(1, metaPages, page + 1); for (const s of S.values()) n = Math.max(n, pg(s) + 1); return Math.min(n, MAXP); };
+const bd = d => d.board | 0;                           // strokes without a board belong to board 1
+const pageCount = () => { let n = Math.max(1, metaPages[board] || 1, page + 1); for (const s of S.values()) if (bd(s) === board) n = Math.max(n, pg(s) + 1); return Math.min(n, MAXP); };
+const boardCount = () => { let n = Math.max(1, board + 1); for (const b in metaPages) n = Math.max(n, +b + 1); for (const s of S.values()) n = Math.max(n, bd(s) + 1); return Math.min(n, MAXB); };
+const metaDoc = b => doc(db, 'rooms', room, 'wbmeta', b ? 'b' + b : 'state');
+const bdUnseen = i => [...unseen].some(k => k.startsWith(i + ':'));
 const toast = t => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; $('toasts').append(d); setTimeout(() => d.remove(), 3500); };
 const myName = () => document.querySelector('#t-' + uid + ' .nm')?.textContent.replace(/ \(You\)$/, '') || 'Guest';
 async function api(body) {
@@ -18,6 +25,15 @@ async function api(body) {
   const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error || 'request failed'); return j;
 }
+
+/* ---------- Plan limits ---------- */
+const best = (a, b) => a == null || b == null ? null : Math.max(a, b);
+async function loadLimits(force) {
+  let mine = FREE; try { mine = (await getPlan(force)).limits; } catch {}
+  let h = {}; try { const s = await getDoc(doc(db, 'rooms', room)); if (s.exists()) h = s.data(); } catch {}   // the host's limits, saved by meeting.html
+  LIM = { boards: best(mine.boards, h.boards === undefined ? FREE.boards : h.boards), pages: best(mine.pages, h.pages === undefined ? FREE.pages : h.pages) };
+}
+const nope = (n, what) => toast('The plan for this meeting allows ' + n + ' ' + what + '. Upgrade on the Pricing page for more.');
 
 /* ---------- UI ---------- */
 const css = document.createElement('style');
@@ -39,6 +55,7 @@ wb.innerHTML = `<div class="wbbar">
 <button class="wbt" data-t="rect">▭ Box</button><button class="wbt" data-t="ellipse">◯ Circle</button><button class="wbt" data-t="text">T Text</button>
 <input type="color" id="wbCol" value="#111111" title="Colour"><input type="range" id="wbSize" min="2" max="40" value="5" title="Size">
 <button class="wbt" id="wbUndo">↩ Undo</button><button class="wbt" id="wbClear">🗑 Clear page</button>
+<span class="wbg"><select id="wbBd" title="Whiteboard"></select><button class="wbt" id="wbAddBd" title="New whiteboard">＋ Board</button></span>
 <span class="wbg"><button class="wbt" id="wbPrev" title="Previous page">◀</button><select id="wbPg"></select><button class="wbt" id="wbNext" title="Next page">▶</button><button class="wbt" id="wbAdd">＋ Page</button></span>
 <span class="wbsp"></span>
 <button class="wbt" id="wbDrive">☁ Save page</button><button class="wbt" id="wbDriveAll">☁ Save all</button><button class="wbt" id="wbPng">⬇ PNG</button><button class="wbt" id="wbClose">✕ Close</button></div>
@@ -47,27 +64,46 @@ $('grid').after(wb);
 cv = $('wbc'); g = cv.getContext('2d');
 
 function pgUI() {
-  const n = pageCount(), sel = $('wbPg'); sel.innerHTML = '';
-  for (let i = 0; i < n; i++) { const o = document.createElement('option'); o.value = i; o.textContent = 'Page ' + (i + 1) + ' of ' + n + (unseen.has(i) ? ' ●' : ''); sel.append(o); }
+  const n = pageCount(), sel = $('wbPg'), nb = boardCount(), bs = $('wbBd'); sel.innerHTML = ''; bs.innerHTML = '';
+  for (let i = 0; i < nb; i++) { const o = document.createElement('option'); o.value = i; o.textContent = 'Board ' + (i + 1) + ' of ' + nb + (bdUnseen(i) ? ' ●' : ''); bs.append(o); }
+  bs.value = board;
+  for (let i = 0; i < n; i++) { const o = document.createElement('option'); o.value = i; o.textContent = 'Page ' + (i + 1) + ' of ' + n + (unseen.has(board + ':' + i) ? ' ●' : ''); sel.append(o); }
   sel.value = page; $('wbPrev').disabled = page <= 0; $('wbNext').disabled = page >= n - 1;
 }
 function goPage(i) {
-  end(); page = Math.min(Math.max(0, i), pageCount() - 1); unseen.delete(page); pgUI(); redraw();
+  end(); page = Math.min(Math.max(0, i), pageCount() - 1); unseen.delete(board + ':' + page); pgUI(); redraw();
+}
+function goBoard(i) {
+  end(); board = Math.min(Math.max(0, i), boardCount() - 1); page = 0; unseen.delete(board + ':0'); pgUI(); redraw();
 }
 $('wbPrev').onclick = () => goPage(page - 1);
 $('wbNext').onclick = () => goPage(page + 1);
 $('wbPg').onchange = e => goPage(+e.target.value);
-$('wbAdd').onclick = () => {
+$('wbBd').onchange = e => goBoard(+e.target.value);
+$('wbAdd').onclick = async () => {
   if (!col) return toast('Join a meeting first');
-  const n = pageCount(); if (n >= MAXP) return toast('Page limit reached (' + MAXP + ')');
-  metaPages = n + 1;
-  setDoc(metaRef, { pages: n + 1 }, { merge: true }).catch(() => toast('Could not add page (check Firestore rules)'));
+  await loadLimits();
+  const n = pageCount();
+  if (!allows(LIM, 'pages', n)) return nope(LIM.pages, 'pages per whiteboard');
+  if (n >= MAXP) return toast('Page limit reached (' + MAXP + ')');
+  metaPages[board] = n + 1;
+  setDoc(metaDoc(board), { pages: n + 1 }, { merge: true }).catch(() => toast('Could not add page (check Firestore rules)'));
   goPage(n);
+};
+$('wbAddBd').onclick = async () => {
+  if (!col) return toast('Join a meeting first');
+  await loadLimits();
+  const n = boardCount();
+  if (!allows(LIM, 'boards', n)) return nope(LIM.boards, LIM.boards === 1 ? 'whiteboard' : 'whiteboards');
+  if (n >= MAXB) return toast('Whiteboard limit reached (' + MAXB + ')');
+  metaPages[n] = 1;
+  setDoc(metaDoc(n), { pages: 1 }, { merge: true }).catch(() => toast('Could not add whiteboard (check Firestore rules)'));
+  goBoard(n);
 };
 
 function setOpen(v) {
   open = v; wb.classList.toggle('hidden', !v); $('grid').classList.toggle('hidden', v); btn.classList.toggle('act', v);
-  if (v) { $('wbDot').classList.add('hidden'); unseen.delete(page); pgUI(); redraw(); }
+  if (v) { $('wbDot').classList.add('hidden'); unseen.delete(board + ':' + page); pgUI(); redraw(); }
 }
 btn.onclick = () => { if (!room) return toast('Join a meeting first'); setOpen(!open); };
 $('wbClose').onclick = () => setOpen(false);
@@ -93,11 +129,11 @@ function stroke(c, s) {
   }
   c.restore();
 }
-const onPage = p => [...S.values()].filter(s => pg(s) === p).sort((a, b) => a.ts - b.ts);
+const onPage = p => [...S.values()].filter(s => bd(s) === board && pg(s) === p).sort((a, b) => a.ts - b.ts);
 function redraw() { if (!open) return; g.clearRect(0, 0, W, H); onPage(page).forEach(s => stroke(g, s)); }
 const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height].map(v => Math.round(Math.min(1, Math.max(0, v)) * 1e4) / 1e4); };
 function add(s) {
-  const ref = doc(col), d = { uid, name: myName(), color, size, ts: Date.now(), page, ...s };
+  const ref = doc(col), d = { uid, name: myName(), color, size, ts: Date.now(), page, board, ...s };
   S.set(ref.id, d); setDoc(ref, d).catch(() => toast('Could not save drawing (check Firestore rules)')); redraw(); return { id: ref.id, ref };
 }
 cv.addEventListener('pointerdown', e => {
@@ -115,16 +151,16 @@ const end = () => { if (cur) { flush(); cur = null; } };
 cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
 setInterval(() => { if (cur && cur.dirty) flush(); }, 250);             // live strokes for everyone else
 
-$('wbUndo').onclick = () => { const m = [...S.entries()].filter(([, s]) => s.uid === uid && pg(s) === page).sort((a, b) => b[1].ts - a[1].ts)[0]; if (m) deleteDoc(doc(col, m[0])).catch(() => {}); };
+$('wbUndo').onclick = () => { const m = [...S.entries()].filter(([, s]) => s.uid === uid && bd(s) === board && pg(s) === page).sort((a, b) => b[1].ts - a[1].ts)[0]; if (m) deleteDoc(doc(col, m[0])).catch(() => {}); };
 $('wbClear').onclick = () => {
-  const ids = [...S.entries()].filter(([, s]) => pg(s) === page).map(([id]) => id);
+  const ids = [...S.entries()].filter(([, s]) => bd(s) === board && pg(s) === page).map(([id]) => id);
   if (ids.length && confirm('Clear page ' + (page + 1) + ' for everyone?')) ids.forEach(id => deleteDoc(doc(col, id)).catch(() => {}));
 };
 
 /* ---------- Export ---------- */
 const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-const fileName = (p, t) => 'whiteboard-' + room + '-p' + (p + 1) + '-' + t + '.png';
-function renderPage(p) {                                // any page, open or not
+const fileName = (p, t) => 'whiteboard-' + room + (board ? '-b' + (board + 1) : '') + '-p' + (p + 1) + '-' + t + '.png';
+function renderPage(p) {                                // any page of the current board, open or not
   const t = document.createElement('canvas'); t.width = W; t.height = H; const tc = t.getContext('2d');
   onPage(p).forEach(s => stroke(tc, s));
   const o = document.createElement('canvas'); o.width = W; o.height = H; const c = o.getContext('2d');
@@ -134,7 +170,7 @@ $('wbPng').onclick = () => { const a = document.createElement('a'); a.href = ren
 async function saveDrive(all) {
   if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE')) return toast('Google Drive is not set up yet (see meet-config.js)');
   const pages = all ? [...Array(pageCount()).keys()].filter(p => onPage(p).length) : [page];
-  if (!pages.length || (!all && !onPage(page).length)) return toast(all ? 'The whiteboard is empty' : 'This page is empty');
+  if (!pages.length || (!all && !onPage(page).length)) return toast(all ? 'This whiteboard is empty' : 'This page is empty');
   const bs = [$('wbDrive'), $('wbDriveAll')], labels = bs.map(b => b.textContent), t = stamp();
   bs.forEach(b => { b.disabled = true; }); bs[all ? 1 : 0].textContent = 'Saving…';
   try {
@@ -154,26 +190,35 @@ $('wbDriveAll').onclick = () => saveDrive(true);
 /* ---------- Live sync (starts when you join a meeting) ---------- */
 function start() {
   if (started) return; started = true;
-  const app = getApps()[0]; auth = getAuth(app); db = getFirestore(app); uid = auth.currentUser?.uid;
+  const app = getApps().find(a => a.name === '[DEFAULT]') || getApps()[0]; auth = getAuth(app); db = getFirestore(app); uid = auth.currentUser?.uid;
   room = decodeURIComponent(location.hash.slice(1)); if (!uid || !room) { started = false; return; }
   col = collection(db, 'rooms', room, 'wb');
-  metaRef = doc(db, 'rooms', room, 'wbmeta', 'state');
+  loadLimits().catch(() => {});
 
-  onSnapshot(metaRef, s => {                            // page count shared by everyone
-    const n = Math.min(MAXP, s.exists() ? (s.data().pages | 0) || 1 : 1);
-    if (!metaFirst && n > metaPages) { if (n - 1 !== page || !open) unseen.add(n - 1); if (!open) $('wbDot').classList.remove('hidden'); }
-    metaPages = n; metaFirst = false; pgUI();
+  onSnapshot(collection(db, 'rooms', room, 'wbmeta'), snap => {       // board and page counts shared by everyone
+    snap.docChanges().forEach(ch => {
+      const id = ch.doc.id, b = id === 'state' ? 0 : /^b\d+$/.test(id) ? +id.slice(1) : -1;
+      if (b < 0 || b >= MAXB) return;
+      if (ch.type === 'removed') { delete metaPages[b]; return; }
+      const n = Math.min(MAXP, (ch.doc.data().pages | 0) || 1), had = b in metaPages, prev = metaPages[b] ?? 1;
+      if (!metaFirst && ((!had && b > 0) || n > prev)) {
+        if (!(open && b === board && n - 1 === page)) unseen.add(b + ':' + (n - 1));
+        if (!open) $('wbDot').classList.remove('hidden');
+      }
+      metaPages[b] = n;
+    });
+    metaFirst = false; pgUI();
   }, e => console.error(e));
 
   onSnapshot(col, snap => {
-    let other = null; const otherPages = new Set();
+    let other = null; const otherKeys = new Set();
     snap.docChanges().forEach(ch => {
       const id = ch.doc.id, d = ch.doc.data();
       if (ch.type === 'removed') { S.delete(id); return; }
       if (d.uid === uid && S.has(id)) return;                              // my own stroke is already drawn locally
-      S.set(id, d); if (d.uid !== uid) { other = d; otherPages.add(pg(d)); }
+      S.set(id, d); if (d.uid !== uid) { other = d; otherKeys.add(bd(d) + ':' + pg(d)); }
     });
-    if (!firstSnap) otherPages.forEach(p => { if (!open || p !== page) unseen.add(p); });
+    if (!firstSnap) otherKeys.forEach(k => { if (!open || k !== board + ':' + page) unseen.add(k); });
     redraw(); pgUI();
     if (other && !firstSnap && !open) { $('wbDot').classList.remove('hidden'); if (Date.now() - lastNote > 30000) { lastNote = Date.now(); toast((other.name || 'Someone') + ' is drawing on the whiteboard. Click Whiteboard to join.'); } }
     firstSnap = false;
