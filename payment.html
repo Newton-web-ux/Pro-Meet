@@ -52,8 +52,6 @@
 .qrbox{background:#fff;padding:14px;border-radius:14px;width:fit-content;margin:0 auto;min-height:228px;min-width:228px;display:grid;place-items:center;color:#334155;font-size:13px;text-align:center}
 .qrbox img,.qrbox canvas{display:block}
 .amt{text-align:center;margin:16px 0 10px;font-size:16px}.amt b{font-size:20px}
-.upiid{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:14px}
-.upiid code{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;word-break:break-all}
 .btn.sm{padding:7px 12px;font-size:13px}.btn.wide{width:100%}
 .upi-btn{display:none;margin-bottom:12px}
 @media(max-width:760px),(pointer:coarse){.upi-btn{display:flex}}
@@ -173,7 +171,6 @@ label.f{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
         <div id="pay" class="hidden">
           <div class="qrbox" id="qr" aria-label="UPI QR code"></div>
           <p class="amt">Pay <b id="p-amt">₹149</b> to <b id="p-name"></b></p>
-          <div class="upiid"><code id="upiId"></code><button class="btn alt sm" id="copyUpi" type="button">Copy</button></div>
           <a class="btn lg wide upi-btn" id="upiLink" href="#">Pay with a UPI app</a>
           <p class="fine" style="text-align:center">Payment note <code id="refNote"></code> is added for you. Keep it if your app lets you edit it.</p>
           <hr>
@@ -208,7 +205,7 @@ import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signO
 import { SCRIPT_URL } from './meet-config.js';
 
 /* ================= CONFIG ================= */
-const CFG = { upiId: 'banerjeearnab.live@oksbi', payee: 'Newtonian Academy' };      // who receives the money (shown in the user's UPI app)
+const CFG = { upiId: 'banerjeearnab.live@oksbi', payee: 'Pro Meet' };      // upiId is only embedded in the QR / UPI link below, never shown as text; payee is what the user's UPI app and this page display
 const PLANS = { pro: { name: 'Pro', monthly: 149, yearly: 999 }, enterprise: { name: 'Enterprise', monthly: 399, yearly: 1999 } };
 const DAYS = { monthly: 30, yearly: 365 };                                           // keep in sync with DAYS in the Apps Script
 const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
@@ -269,7 +266,7 @@ function renderCheckout() {
   $('o-plan').textContent = PLANS[plan].name; $('o-bill').textContent = cap(billing); $('o-days').textContent = DAYS[billing] + ' days';
   $('o-total').textContent = $('p-amt').textContent = money(amount());
   $('o-acc').textContent = user ? user.email : authReady ? 'Not signed in' : 'Checking…';
-  $('p-name').textContent = CFG.payee; $('upiId').textContent = CFG.upiId; $('refNote').textContent = note();
+  $('p-name').textContent = CFG.payee; $('refNote').textContent = note();
   $('upiLink').href = upiUrl();
   $('gate').classList.toggle('hidden', !!user);
   $('pay').classList.toggle('hidden', !user);
@@ -286,7 +283,6 @@ async function drawQR() {
     box.textContent = ''; new QRCode(box, { text, width: 200, height: 200, colorDark: '#0b0e13', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
   } catch { qrDrawn = ''; box.textContent = 'The QR code could not load. Pay to the UPI ID below instead.'; }
 }
-$('copyUpi').onclick = async () => { try { await navigator.clipboard.writeText(CFG.upiId); $('copyUpi').textContent = 'Copied'; setTimeout(() => $('copyUpi').textContent = 'Copy', 1500); } catch {} };
 
 /* ---------- Account ---------- */
 onAuthStateChanged(auth, u => {
