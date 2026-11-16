@@ -222,6 +222,9 @@ async function enter() {
   metaRef = doc(db, 'rooms', room);
   try { meta = (await gs({ action: 'startRoom', room, name: me.name })).meta; }
   catch (e) { throw Object.assign(new Error('Could not start the meeting (' + e.message + ').'), { limit: true }); }
+  // If I'm the host, immediately ask the server to re-check my plan and raise the room's limits if
+  // they were captured too low (e.g. my Google sign-in hadn't loaded yet when the room was created).
+  if (meta.hostUid === me.uid) gs({ action: 'extendRoom', room }).then(j => { if (j && j.meta) meta = j.meta; }).catch(() => {});
   if (meta.limitMin != null && Date.now() >= meta.startedAt + meta.limitMin * 60000)
     throw Object.assign(new Error('This meeting reached its ' + meta.limitMin + '-minute limit. Upgrade to Pro or Enterprise for longer meetings.'), { limit: true });
 
