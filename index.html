@@ -62,6 +62,10 @@ if (/^#.+/.test(location.hash) && !/^#(features|how|trust|faq|top)$/.test(locati
 .join{display:flex;gap:10px;margin-top:16px;max-width:430px}.join input{padding:12px 14px}
 .fine{color:var(--mut);font-size:13px;margin-top:16px;max-width:52ch}
 
+/* Install app button (only shown when the browser offers installation) */
+#installBtn[hidden]{display:none}
+.nav-cta{display:flex;gap:10px;align-items:center}
+
 /* Hero illustration of a call */
 .mock{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
 .mk-head{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);padding:4px 6px 10px}
@@ -173,7 +177,7 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
   <div class="wrap">
     <a class="logo" href="index.html" aria-label="Pro Meet home"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a>
     <nav class="links" aria-label="Main"><a href="#features">Features</a><a href="#how">How it works</a><a href="#trust">Security</a><a href="payment.html">Pricing</a><a href="#faq">FAQ</a></nav>
-    <div class="nav-cta"><a class="btn" href="dashboard.html">Open dashboard</a></div>
+    <div class="nav-cta"><button class="btn alt" id="installBtn" type="button" hidden>Install app</button><a class="btn" href="dashboard.html">Open dashboard</a></div>
   </div>
 </header>
 
@@ -400,6 +404,49 @@ $('yr').textContent = new Date().getFullYear();
 for (let i = 0; i < 24; i++) {                                   // decorative microphone level bars
   const b = document.createElement('i'); b.style.setProperty('--h', (28 + (i * 37) % 66) + '%'); b.style.setProperty('--d', (-(i * 0.13)).toFixed(2) + 's'); $('meter').append(b);
 }
+</script>
+<script>
+/* Install tracking: reports visits, install prompt events, installs and installed-app launches to the Pro Meet backend.
+ * Each browser gets a random device id (stored in localStorage). No personal data is sent unless you add a sign-in token. */
+(function () {
+  const GAS = 'https://script.google.com/macros/s/AKfycbwdpMWFSjfnKrQp-u_mwcZafWLiZAOrJ3Vx6LqhjqactPADe1Y2UsbSxjMAtmdY_jFZSQ/exec';
+  let id = '';
+  try { id = localStorage.getItem('pm_dev') || ''; } catch (e) {}
+  if (!id) {
+    id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    try { localStorage.setItem('pm_dev', id); } catch (e) {}
+  }
+  const mode = () => (navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) ? 'standalone' : 'browser';
+  const track = ev => {
+    try {
+      fetch(GAS, {
+        method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' },   // text/plain avoids a CORS preflight
+        body: JSON.stringify({ action: 'install', event: ev, deviceId: id, mode: mode(), platform: navigator.platform || '', ua: navigator.userAgent, page: location.pathname })
+      }).catch(() => {});
+    } catch (e) {}
+  };
+
+  track(mode() === 'standalone' ? 'launch_standalone' : 'visit');
+
+  let deferred = null;
+  const btn = document.getElementById('installBtn');
+  addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();                                          // keep the prompt so our own Install button can trigger it
+    deferred = e;
+    track('prompt_available');
+    if (btn) btn.hidden = false;
+  });
+  if (btn) btn.addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    try {
+      const r = await deferred.userChoice;
+      track(r.outcome === 'accepted' ? 'prompt_accepted' : 'prompt_dismissed');
+    } catch (e) {}
+    deferred = null; btn.hidden = true;
+  });
+  addEventListener('appinstalled', () => { track('installed'); if (btn) btn.hidden = true; });
+})();
 </script>
 <script>
 (function removeHTML(){
