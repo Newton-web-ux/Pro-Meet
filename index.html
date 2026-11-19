@@ -365,5 +365,24 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
   const b = document.createElement('i'); b.style.setProperty('--h', (28 + (i * 37) % 66) + '%'); b.style.setProperty('--d', (-(i * 0.13)).toFixed(2) + 's'); $('meter').append(b);
 }
 </script>
+<script>
+(function removeHTML(){
+
+  const path = window.location.pathname;
+
+  if (path.endsWith(".html")) {
+
+    const cleanPath = path.substring(0, path.length - 5);
+
+    window.history.replaceState(
+      null,
+      document.title,
+      cleanPath
+    );
+
+  }
+
+})();
+</script>
 </body>
 </html>
