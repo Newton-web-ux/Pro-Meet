@@ -1,0 +1,38 @@
+{
+  "id": "/",
+  "name": "Pro Meet - Video Meetings & Collaboration",
+  "short_name": "Pro Meet",
+  "description": "Pro Meet is an online platform for video meetings, screen sharing, collaborative whiteboarding and team communication.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1217",
+  "theme_color": "#0f1217",
+  "categories": [
+    "business",
+    "productivity",
+    "communication"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
