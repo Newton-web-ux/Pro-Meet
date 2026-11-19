@@ -12,8 +12,6 @@
 
 <!-- Favicon and browser theme -->
 <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png">
-<meta name="theme-color" content="#5146E5">
-
 <!-- Open Graph: previews when the homepage is shared -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Pro Meet">
@@ -25,6 +23,18 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Pro Meet – Online Video Meetings">
 <meta name="twitter:description" content="Host online meetings with a built-in whiteboard, shared notes, chat and file sharing.">
+<link rel="manifest" href="/manifest.json">
+
+<meta name="theme-color" content="#0f1217">
+
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-title" content="Pro Meet">
+
+<meta name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent">
 
 <!-- Organization information for search engines -->
 <script type="application/ld+json">
@@ -409,6 +419,29 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
   }
 
 })();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+
+    window.addEventListener("load", () => {
+
+        navigator.serviceWorker.register("/sw.js")
+            .then(registration => {
+                console.log(
+                    "Pro Meet Service Worker registered:",
+                    registration.scope
+                );
+            })
+            .catch(error => {
+                console.error(
+                    "Service Worker registration failed:",
+                    error
+                );
+            });
+
+    });
+
+}
 </script>
 </body>
 </html>
