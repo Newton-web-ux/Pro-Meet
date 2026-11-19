@@ -561,5 +561,24 @@ addEventListener('keydown', e => {
 <script type="module" src="note.js"></script>
 <script type="module" src="history.js"></script>
 <script type="module" src="settings.js"></script>
+<script>
+(function removeHTML(){
+
+  const path = window.location.pathname;
+
+  if (path.endsWith(".html")) {
+
+    const cleanPath = path.substring(0, path.length - 5);
+
+    window.history.replaceState(
+      null,
+      document.title,
+      cleanPath
+    );
+
+  }
+
+})();
+</script>
 </body>
 </html>
