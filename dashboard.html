@@ -429,5 +429,24 @@ mergeJoins(); render(); syncSubs();
 addEventListener('storage', e => { if (e.key === 'pm_joins') mergeJoins(); });
 addEventListener('focus', () => { mergeJoins(); refreshPlan(); });
 </script>
+<script>
+(function removeHTML(){
+
+  const path = window.location.pathname;
+
+  if (path.endsWith(".html")) {
+
+    const cleanPath = path.substring(0, path.length - 5);
+
+    window.history.replaceState(
+      null,
+      document.title,
+      cleanPath
+    );
+
+  }
+
+})();
+</script>
 </body>
 </html>
