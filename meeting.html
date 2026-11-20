@@ -74,6 +74,12 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
 .dot{position:absolute;top:4px;right:16px;background:var(--red);color:#fff;border-radius:9px;font-size:10px;padding:1px 5px}
 #toasts{position:fixed;top:60px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:9}
 .toast{background:#222a36;border:1px solid var(--line);padding:8px 16px;border-radius:10px;font-size:13px}
+
+/* Waiting room: join requests shown to the host */
+#knocks{position:fixed;top:60px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:12;width:min(320px,calc(100% - 32px))}
+.knock{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.knock div:first-child{margin-bottom:10px}.knock .kb{display:flex;gap:8px}.knock .kb button{flex:1;padding:8px;border-radius:8px;font-weight:600}
+.knock .ok{background:var(--grn);color:#fff}.knock .no{background:#222a36}
 @media(max-width:760px){#side{position:fixed;inset:0;width:100%;z-index:5}.cb{min-width:54px}#grid.spot .tile.pinned{height:50vh}}
 </style>
 </head>
@@ -95,6 +101,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
     <input id="nameIn" placeholder="Your name" maxlength="30">
     <input id="roomIn" placeholder="Room code" maxlength="40">
     <button class="btn" id="joinBtn">Join meeting</button>
+    <button class="ghost hidden" id="cancelWait">Cancel join request</button>
     <button class="ghost" id="newBtn">Generate a new room code</button>
     <div id="err"></div>
   </div>
@@ -127,10 +134,12 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
     <button class="cb" id="handBtn"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16a2 2 0 0 1 3.2-2.4L8 15"/></svg><span>Raise hand</span></button>
     <button class="cb" id="chatBtn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span><i class="dot hidden" id="unread">0</i></button>
     <button class="cb" id="pplBtn"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span>People</span></button>
+    <button class="cb act hidden" id="wrBtn" title="Host only: ask before people can join"><svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Waiting room: On</span></button>
     <button class="cb leave" id="leaveBtn"><svg viewBox="0 0 24 24"><path d="M10.7 13.3a16 16 0 0 0 2.6 2l1.3-1.3a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.7M22 2 2 22"/></svg><span>Leave</span></button>
   </div>
 </div>
 <div id="toasts"></div>
+<div id="knocks"></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -201,16 +210,62 @@ $('joinBtn').onclick = async () => {
     detectHeadphones();
   } catch (e) {
     console.error(e);
+    $('err').style.color = '';
     $('err').textContent = e.limit ? e.message : 'Could not join (' + (e.code || e.message) + '). Enable Anonymous Auth + Firestore and publish the rules.';
-    $('joinBtn').disabled = false;
+    $('joinBtn').disabled = false; $('cancelWait').classList.add('hidden');
     $('lobby').classList.remove('hidden'); $('meeting').classList.add('hidden');
   }
 };
 
+/* ================= Waiting room (host approves or rejects people who try to join) =================
+   The host is the person the server recorded as host of this room (or, if they are not in the call, whoever has
+   been in the room longest). A guest sends a "knock" through the signaling collection and waits for "admit" or "deny".
+   This is meeting etiquette applied by each browser, like the other host controls. It is not a security boundary. */
+let waitCancel = null;
+$('cancelWait').onclick = () => waitCancel && waitCancel();
+async function admission() {
+  if (meta.hostUid === me.uid) return;                                       // the host always walks in
+  const live = (await getDocs(partCol)).docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.id !== me.uid && Date.now() - p.seen < STALE);
+  if (!live.length) return;                                                  // empty room: nobody to ask
+  const gk = live.find(p => p.id === meta.hostUid) || live.sort((a, b) => a.joinedAt - b.joinedAt)[0];
+  if (gk.wr === false) return;                                               // host turned the waiting room off
+  const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  $('err').style.color = '#9fb3c8'; $('err').textContent = 'Waiting for the host to let you in…'; $('cancelWait').classList.remove('hidden');
+  await send(gk.id, 'knock', { name: me.name, nonce });
+  const answer = await new Promise(res => {
+    let un; const done = v => { un && un(); clearTimeout(to); waitCancel = null; res(v); };
+    const to = setTimeout(() => done('timeout'), 180000); waitCancel = () => done('cancel');
+    un = onSnapshot(query(sigCol, where('to', '==', me.uid)), snap => snap.docChanges().forEach(c => {
+      if (c.type !== 'added') return;
+      const s = c.doc.data(); if (s.type !== 'admit' && s.type !== 'deny') return;
+      let d = {}; try { d = JSON.parse(s.data); } catch {}
+      deleteDoc(c.doc.ref).catch(() => {});
+      if (d.nonce === nonce) done(s.type);
+    }), () => done('timeout'));
+  });
+  $('cancelWait').classList.add('hidden'); $('err').style.color = '';
+  if (answer === 'admit') return;
+  if (answer !== 'deny') send(gk.id, 'cancel', { nonce }).catch(() => {});
+  throw Object.assign(new Error(answer === 'deny' ? 'The host declined your request to join.' : answer === 'cancel' ? 'Join request cancelled.' : 'The host did not respond. Please try again.'), { limit: true });
+}
+/* Host side: show a card with Admit / Deny for each person who knocks */
+function knock(s) {
+  let d = {}; try { d = JSON.parse(s.data); } catch {}
+  if (!d.nonce) return;
+  const id = 'k-' + String(d.nonce).replace(/[^a-z0-9]/gi, '');
+  if (s.type === 'cancel') return $(id)?.remove();
+  if ($(id)) return;
+  const c = document.createElement('div'), t = document.createElement('div'), b = document.createElement('div'), ok = document.createElement('button'), no = document.createElement('button');
+  c.className = 'knock'; c.id = id; t.textContent = String(d.name || 'Someone').slice(0, 30) + ' wants to join'; b.className = 'kb';
+  ok.className = 'ok'; ok.textContent = 'Admit'; no.className = 'no'; no.textContent = 'Deny';
+  const reply = type => { send(s.from, type, { nonce: d.nonce }).catch(() => {}); c.remove(); };
+  ok.onclick = () => reply('admit'); no.onclick = () => reply('deny');
+  b.append(ok, no); c.append(t, b); $('knocks').append(c); setTimeout(() => c.remove(), 180000);
+  toast(String(d.name || 'Someone').slice(0, 30) + ' is asking to join');
+}
+
 /* ================= Join the room ================= */
 async function enter() {
-  $('lobby').classList.add('hidden'); $('meeting').classList.remove('hidden');
-  $('roomLbl').textContent = room; location.hash = room;
   partCol = collection(db, 'rooms', room, 'participants');
   sigCol = collection(db, 'rooms', room, 'signals');
   msgCol = collection(db, 'rooms', room, 'messages');
@@ -228,7 +283,11 @@ async function enter() {
   if (meta.limitMin != null && Date.now() >= meta.startedAt + meta.limitMin * 60000)
     throw Object.assign(new Error('This meeting reached its ' + meta.limitMin + '-minute limit. Upgrade to Pro or Enterprise for longer meetings.'), { limit: true });
 
-  const mine = { name: me.name, audio: !!track('audio')?.enabled, video: !!track('video')?.enabled, hand: false, sharing: false, joinedAt: Date.now(), seen: Date.now() };
+  await admission();                                                         // waiting room: the host must admit you
+  $('lobby').classList.add('hidden'); $('meeting').classList.remove('hidden');
+  $('roomLbl').textContent = room; location.hash = room;
+
+  const mine = { name: me.name, audio: !!track('audio')?.enabled, video: !!track('video')?.enabled, hand: false, sharing: false, wr: true, joinedAt: Date.now(), seen: Date.now() };
   roster[me.uid] = mine; paint(me.uid); watch(me.uid, localStream);
 
   // drop stale signals from earlier sessions of this identity
@@ -295,6 +354,7 @@ async function enter() {
     }
     $('timer').textContent = txt;
   }, 1000);
+  $('wrBtn').classList.toggle('hidden', meta.hostUid !== me.uid);
   syncButtons();
 }
 
@@ -320,6 +380,8 @@ async function initiate(id, restart) {
 }
 async function flush(p) { for (const c of p.q.splice(0)) await p.pc.addIceCandidate(c).catch(() => {}); }
 async function onSignal(s) {
+  if (s.type === 'knock' || s.type === 'cancel') return knock(s);                    // waiting-room request (handled before any peer is created)
+  if (s.type === 'admit' || s.type === 'deny') return;
   const data = JSON.parse(s.data);
   if (s.type === 'offer' && peers[s.from]?.pc.remoteDescription) dropPeer(s.from, false);   // remote restarted
   const p = getPeer(s.from), pc = p.pc;
@@ -486,11 +548,13 @@ function syncButtons() {
   set('camBtn', !r.video, r.video ? 'Stop video' : 'Start video');
   set('shareBtn', false, r.sharing ? 'Stop share' : 'Share', r.sharing);
   set('handBtn', false, r.hand ? 'Lower hand' : 'Raise hand', r.hand);
+  set('wrBtn', false, 'Waiting room: ' + (r.wr === false ? 'Off' : 'On'), r.wr !== false);
 }
 const toggleMic = () => { const t = track('audio'); if (!t) return toast('No microphone available'); t.enabled = !t.enabled; upd({ audio: t.enabled }); };
 const toggleCam = () => { const t = track('video'); if (!t) return toast('No camera available'); t.enabled = !t.enabled; upd({ video: t.enabled }); };
 $('micBtn').onclick = toggleMic; $('camBtn').onclick = toggleCam;
 $('handBtn').onclick = () => upd({ hand: !roster[me.uid].hand });
+$('wrBtn').onclick = () => { const on = roster[me.uid].wr === false; upd({ wr: on }); toast('Waiting room ' + (on ? 'on: new people need your approval' : 'off: anyone with the link can join')); };
 
 function swapVideo(t) {
   Object.values(peers).forEach(({ pc }) => {
@@ -561,6 +625,7 @@ addEventListener('keydown', e => {
 <script type="module" src="note.js"></script>
 <script type="module" src="history.js"></script>
 <script type="module" src="settings.js"></script>
+<script type="module" src="recording.js"></script>
 <script>
 (function removeHTML(){
 
