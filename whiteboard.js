@@ -5,6 +5,7 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-aut
 import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { SCRIPT_URL } from "./meet-config.js";
 import { getPlan, allows, FREE } from "./plan.js";
+import { track, deviceId } from "./analytics.js";
 
 const $ = id => document.getElementById(id), W = 1600, H = 900, MAXP = 100, MAXB = 50;   // hard caps (also "unlimited" on Enterprise)
 const S = new Map();                                   // stroke id -> stroke data (all boards and pages)
@@ -22,7 +23,7 @@ const toast = t => { const d = document.createElement('div'); d.className = 'toa
 const myName = () => document.querySelector('#t-' + uid + ' .nm')?.textContent.replace(/ \(You\)$/, '') || 'Guest';
 async function api(body) {
   const token = await auth.currentUser.getIdToken();
-  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) });
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token, device: deviceId() }) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error || 'request failed'); return j;
 }
 
@@ -105,7 +106,7 @@ function setOpen(v) {
   open = v; wb.classList.toggle('hidden', !v); $('grid').classList.toggle('hidden', v); btn.classList.toggle('act', v);
   if (v) { $('wbDot').classList.add('hidden'); unseen.delete(board + ':' + page); pgUI(); redraw(); }
 }
-btn.onclick = () => { if (!room) return toast('Join a meeting first'); setOpen(!open); };
+btn.onclick = () => { if (!room) return toast('Join a meeting first'); setOpen(!open); if (open) track('whiteboard_open'); };   // analytics: whiteboard opened
 $('wbClose').onclick = () => setOpen(false);
 wb.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { tool = b.dataset.t; wb.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x === b)); });
 $('wbCol').oninput = e => { color = e.target.value; };
@@ -138,6 +139,7 @@ function add(s) {
 }
 cv.addEventListener('pointerdown', e => {
   if (!col) return; e.preventDefault(); cv.setPointerCapture(e.pointerId); const p = pt(e);
+  track('whiteboard_draw');                                                  // analytics: drawing (logged at most once per 10 min per room)
   if (tool === 'text') { const t = prompt('Text to add'); if (t && t.trim()) add({ tool, pts: p, text: t.trim().slice(0, 200) }); return; }
   cur = add({ tool, pts: tool === 'pen' || tool === 'eraser' ? p : [...p, ...p] });
 });
@@ -175,7 +177,7 @@ async function saveDrive(all) {
   bs.forEach(b => { b.disabled = true; }); bs[all ? 1 : 0].textContent = 'Saving…';
   try {
     for (const p of pages) {
-      const j = await api({ action: 'upload', room, name: fileName(p, t), type: 'image/png', data: renderPage(p).split(',')[1] });
+      const j = await api({ action: 'upload', room, name: fileName(p, t), type: 'image/png', data: renderPage(p).split(',')[1] });   // the server logs this as a file upload and a whiteboard save
       const info = { id: j.id, name: j.name, size: j.size, type: j.type };
       await addDoc(collection(db, 'rooms', room, 'messages'), { uid, name: myName(), text: '[[drive:' + JSON.stringify(info) + ']]', ts: Date.now() });
     }
