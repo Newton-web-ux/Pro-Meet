@@ -148,6 +148,7 @@ import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, ge
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getPlan, googleToken } from './plan.js';
 import { SCRIPT_URL } from './meet-config.js';
+import { deviceId } from './analytics.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA",
@@ -164,7 +165,7 @@ const auth = getAuth(app), db = getFirestore(app);
 async function gs(body) {
   if (!SCRIPT_URL || SCRIPT_URL.includes('PASTE')) throw new Error('server not configured');
   const token = await auth.currentUser.getIdToken(), ptoken = await googleToken();
-  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token, ptoken }) });
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token, ptoken, device: deviceId() }) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error || 'failed'); return j;
 }
 
