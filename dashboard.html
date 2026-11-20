@@ -60,6 +60,7 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
 .mbox h4{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin:18px 0 8px}
 .pl{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}.pl span:last-child{color:var(--mut);white-space:nowrap}
 .nt{background:#222a36;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:6px;word-break:break-word}.nt small{display:block;color:var(--mut);font-size:11px;margin-bottom:2px}
+.mbox.wide{width:min(900px,100%)}.mbox video{width:100%;max-height:70vh;border-radius:12px;background:#000;margin-top:12px}
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#222a36;border:1px solid var(--line);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}#toast.show{opacity:1}
 @media(max-width:900px){
   .app{grid-template-columns:1fr}
@@ -77,6 +78,7 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
   <button class="nv on" data-go="home">🏠<span>Home</span><b id="nLive"></b></button>
   <button class="nv" data-go="sched">📅<span>Schedule</span><b id="nUp"></b></button>
   <button class="nv" data-go="past">🕘<span>Past meetings</span></button>
+  <button class="nv" data-go="rec">🎞️<span>Recordings</span><b id="nRec"></b></button>
   <button class="nv" data-go="files">📁<span>Shared files</span></button>
   <a class="nv pl2" href="payment.html" id="planTag" style="margin-top:auto">Pricing</a>
 </aside>
@@ -138,6 +140,10 @@ label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
     <div class="card"><h3>Past meetings <small id="pcount">saved for everyone who joined</small></h3><div id="past"></div></div>
   </section>
 
+  <section data-v="rec" hidden>
+    <div class="card"><h3>Recordings <small id="rcount">saved for everyone who joined</small><button class="ico" id="refreshRecs" title="Refresh">↻</button></h3><div id="recs"></div></div>
+  </section>
+
   <section data-v="files" hidden>
     <div class="card"><h3>Shared files <small id="fcount">Google Drive</small><button class="ico" id="refreshFiles" title="Refresh">↻</button></h3><div id="files"></div></div>
   </section>
@@ -154,6 +160,7 @@ import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, query, orde
 
 import { SCRIPT_URL } from './meet-config.js';
 import { getPlan, allows, upgradeMsg } from './plan.js';
+import { track, deviceId } from './analytics.js';
 
 const app = initializeApp({
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA", authDomain: "pro-meet-9e44e.firebaseapp.com", projectId: "pro-meet-9e44e",
@@ -168,7 +175,7 @@ try { S = { ...S, ...JSON.parse(localStorage.getItem(K) || '{}') }; } catch {}
 let uref = null, pastN = 10;
 
 /* ---------- sidebar views ---------- */
-const TITLES = { home: 'Home', sched: 'Schedule', past: 'Past meetings', files: 'Shared files' };
+const TITLES = { home: 'Home', sched: 'Schedule', past: 'Past meetings', rec: 'Recordings', files: 'Shared files' };
 function show(v) {
   document.querySelectorAll('[data-v]').forEach(e => e.hidden = e.dataset.v !== v);
   document.querySelectorAll('.nv[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === v));
@@ -212,9 +219,10 @@ function syncSubs() {
   });
 }
 /* ---------- Firebase sign-in + cloud sync (users/{uid}) ---------- */
-let unsubU = null, wasG = false;
+let unsubU = null, wasG = false, lastG;
 onAuthStateChanged(auth, u => {
   const g = !!u && !u.isAnonymous;
+  if (u && g !== lastG) { if (lastG !== undefined || g) track(g ? 'login' : 'logout', g ? 'google' : 'signed out'); lastG = g; }
   $('cdot').classList.toggle('on', !!u);
   $('ctxt').textContent = g ? (u.displayName || u.email) : u ? 'Guest · saved in this browser' : 'Connecting…';
   $('authBtn').textContent = g ? 'Sign out' : 'Sign in with Google';
@@ -254,7 +262,7 @@ const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) +
 const driveReady = () => SCRIPT_URL && !SCRIPT_URL.includes('PASTE');
 async function api(body) {
   const token = await auth.currentUser.getIdToken();
-  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token }) });
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, token, device: deviceId() }) });
   const j = await r.json(); if (!j.ok) throw new Error(j.error || 'failed'); return j;
 }
 function fileRow(f) {
@@ -280,8 +288,68 @@ async function loadFiles() {
     files.slice(0, 15).forEach(f => box.append(fileRow(f)));
   } catch (e) { box.replaceChildren(el('div', 'empty', 'Could not load files (' + e.message + ')')); }
 }
-let ft; const reloadFiles = () => { clearTimeout(ft); ft = setTimeout(loadFiles, 400); };
+let ft; const reloadFiles = () => { clearTimeout(ft); ft = setTimeout(() => { loadFiles(); loadRecs(); }, 400); };
 $('refreshFiles').onclick = loadFiles;
+
+/* ---------- Recordings (uploaded in parts by the meeting page; joined back together here) ---------- */
+const recCache = new Map();
+const recDur = r => r.dur ? fmtDur(r.dur * 1000) : (r.done ? '' : 'incomplete');
+async function recBlob(r, prog) {
+  if (recCache.has(r.room + r.id)) return recCache.get(r.room + r.id);
+  const bufs = [];
+  for (let i = 0; i < r.parts.length; i++) {
+    prog && prog(i + 1, r.parts.length);
+    const j = await api({ action: 'get', id: r.parts[i].id, room: r.room });
+    bufs.push(Uint8Array.from(atob(j.data), c => c.charCodeAt(0)));
+  }
+  const b = new Blob(bufs, { type: r.mime.includes('mp4') ? 'video/mp4' : 'video/webm' });
+  recCache.set(r.room + r.id, b); return b;
+}
+async function watchRec(r) {
+  const box = $('mbox'); box.replaceChildren(); box.classList.add('wide'); $('modal').classList.remove('hidden');
+  const head = el('div', 'mh'), hl = el('div'), x = el('button', 'ico', '✕');
+  hl.append(el('h3', '', 'Recording · ' + (r.by || 'Meeting')), el('div', 'm', dt(r.ts) + ' · ' + recDur(r) + ' · room ' + r.room));
+  x.onclick = closeModal; head.append(hl, x); box.append(head);
+  const st = el('div', 'm', 'Loading…'); st.style.marginTop = '12px'; box.append(st);
+  try {
+    const b = await recBlob(r, (i, n) => st.textContent = 'Loading part ' + i + ' of ' + n + '…');
+    const v = el('video'); v.controls = true; v.autoplay = true; v.playsInline = true; v.src = URL.createObjectURL(b); st.remove(); box.append(v);
+  } catch (e) { st.textContent = 'Could not load recording (' + e.message + ')'; }
+}
+function recRow(r) {
+  const it = el('div', 'item'), g = el('div', 'grow'), a = el('div', 'actions'), w = el('button', 'ico', '▶ Watch'), d = el('button', 'ico', '⬇');
+  g.append(el('div', 't', titleOf(r.room) + ' · recorded by ' + (r.by || 'someone')), el('div', 'm', dt(r.ts) + (recDur(r) ? ' · ' + recDur(r) : '') + ' · ' + fmtSize(r.size) + ' · room ' + r.room));
+  d.title = 'Download';
+  w.onclick = () => watchRec(r);
+  d.onclick = async () => {
+    d.textContent = '…';
+    try { const b = await recBlob(r), a2 = el('a'); a2.href = URL.createObjectURL(b); a2.download = 'promeet-' + r.room + '-' + r.id + (r.mime.includes('mp4') ? '.mp4' : '.webm'); a2.click(); }
+    catch (e) { toast('Download failed: ' + e.message); }
+    d.textContent = '⬇';
+  };
+  a.append(w, d); it.append(g, a); return it;
+}
+async function loadRecs() {
+  const box = $('recs');
+  if (!driveReady()) return box.replaceChildren(el('div', 'empty', 'Connect Google Drive: paste your Apps Script URL into meet-config.js.'));
+  if (!auth.currentUser || !S.rooms.length) return box.replaceChildren(el('div', 'empty', 'No recordings yet.'));
+  try {
+    const { recs } = await api({ action: 'recList', rooms: S.rooms.map(r => r.code) });
+    $('rcount').textContent = recs.length + (recs.length === 1 ? ' recording' : ' recordings'); $('nRec').textContent = recs.length || ''; box.replaceChildren();
+    if (!recs.length) box.append(el('div', 'empty', 'No recordings yet. When someone records a meeting, it appears here for everyone who joined that room.'));
+    recs.forEach(r => box.append(recRow(r)));
+  } catch (e) { box.replaceChildren(el('div', 'empty', 'Could not load recordings (' + e.message + ')')); }
+}
+async function meetingRecs(m, box) {
+  box.replaceChildren();
+  try {
+    const { recs } = await api({ action: 'recList', rooms: [m.code] });
+    const hit = recs.filter(r => r.ts >= m.start - 120000 && r.ts <= m.end + 30 * 60000);
+    if (!hit.length) box.append(el('div', 'm', 'No recordings of this meeting.'));
+    hit.forEach(r => box.append(recRow(r)));
+  } catch (e) { box.append(el('div', 'm', 'Could not load recordings (' + e.message + ')')); }
+}
+$('refreshRecs').onclick = loadRecs;
 
 setInterval(() => render(), 15000);
 
@@ -304,7 +372,7 @@ function attendees(m) {
   return [...mp.values()].sort((a, b) => a.join - b.join);
 }
 const titleOf = c => (S.rooms.find(r => r.code === c) || S.sched.find(s => s.code === c) || {}).title || c;
-const closeModal = () => $('modal').classList.add('hidden');
+const closeModal = () => { $('mbox').querySelector('video')?.pause(); $('modal').classList.add('hidden'); $('mbox').classList.remove('wide'); };
 $('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
 addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
@@ -319,6 +387,9 @@ async function details(m) {
 
   box.append(el('h4', '', 'Shared notes'));
   const nb = el('div'); nb.append(el('div', 'm', 'Loading…')); box.append(nb);
+  box.append(el('h4', '', 'Recordings'));
+  const rb = el('div'); rb.append(el('div', 'm', 'Loading…')); box.append(rb);
+  driveReady() ? meetingRecs(m, rb) : rb.replaceChildren(el('div', 'm', 'Google Drive is not connected.'));
   box.append(el('h4', '', 'Files saved during this meeting'));
   const fb = el('div'); fb.append(el('div', 'm', 'Loading…')); box.append(fb);
 
@@ -453,6 +524,7 @@ function render() {
 
 const d0 = new Date(Date.now() + 36e5); d0.setMinutes(0, 0, 0);
 $('sWhen').value = new Date(d0 - d0.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+track('page_view', 'dashboard');
 mergeJoins(); render(); syncSubs();
 addEventListener('storage', e => { if (e.key === 'pm_joins') mergeJoins(); });
 addEventListener('focus', () => { mergeJoins(); refreshPlan(); });
