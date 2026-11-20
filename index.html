@@ -421,7 +421,7 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
 /* Install tracking: reports visits, install prompt events, installs and installed-app launches to the Pro Meet backend.
  * Each browser gets a random device id (stored in localStorage). No personal data is sent unless you add a sign-in token. */
 (function () {
-  const GAS = 'https://script.google.com/macros/s/AKfycbwdpMWFSjfnKrQp-u_mwcZafWLiZAOrJ3Vx6LqhjqactPADe1Y2UsbSxjMAtmdY_jFZSQ/exec';
+  const GAS = 'https://script.google.com/macros/s/AKfycbyeggSUiraj-eLqrB7OY_c0bDmaoz6EyHaOpTNtJuVc390eIVAFJBmvlmkv6C_i8dkF8A/exec';
   let id = '';
   try { id = localStorage.getItem('pm_dev') || ''; } catch (e) {}
   if (!id) {
