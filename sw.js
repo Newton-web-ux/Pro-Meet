@@ -1,4 +1,4 @@
-const CACHE_NAME = "pro-meet-v1";
+const CACHE_NAME = "pro-meet-v2";
 
 const STATIC_FILES = [
     "/",
