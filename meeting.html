@@ -100,6 +100,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
     <p>🎧 Tip: wear headphones if another device is in the same room. It is the most reliable way to stop echo.</p>
     <input id="nameIn" placeholder="Your name" maxlength="30">
     <input id="roomIn" placeholder="Room code" maxlength="40">
+    <button class="ghost" id="gBtn">Sign in with Google (optional)</button>
     <button class="btn" id="joinBtn">Join meeting</button>
     <button class="ghost hidden" id="cancelWait">Cancel join request</button>
     <button class="ghost" id="newBtn">Generate a new room code</button>
@@ -143,7 +144,7 @@ header .m{color:var(--mut)}header b{color:var(--txt)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getAuth, signInAnonymously, setPersistence, browserSessionPersistence, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, getDoc, getDocs, onSnapshot, query, where, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getPlan, googleToken } from './plan.js';
@@ -181,9 +182,20 @@ const roster = {}, peers = {}, speakers = {}, unsubs = [];
 let chain = Promise.resolve();
 
 /* ================= Lobby ================= */
+$('newBtn').onclick = () => $('roomIn').value = Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6);
+
+/* Optional Google sign-in: gives this tab a verified email. Guests stay anonymous (no email). */
+$('gBtn').onclick = async () => {
+  try {
+    await setPersistence(auth, browserSessionPersistence);
+    const { user } = await signInWithPopup(auth, new GoogleAuthProvider());
+    if (!$('nameIn').value.trim()) $('nameIn').value = user.displayName || '';
+    $('gBtn').textContent = 'Signed in as ' + user.email;
+  } catch (e) { $('err').textContent = 'Google sign-in failed (' + (e.code || e.message) + ')'; }
+};
+
 const hashRoom = decodeURIComponent(location.hash.slice(1));
 if (hashRoom) $('roomIn').value = hashRoom;
-$('newBtn').onclick = () => $('roomIn').value = Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6);
 
 (async () => {
   try { localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: AUDIO_C }); }
@@ -204,8 +216,8 @@ $('joinBtn').onclick = async () => {
   $('joinBtn').disabled = true; $('err').textContent = '';
   try {
     await setPersistence(auth, browserSessionPersistence);   // unique identity per tab
-    const cred = await signInAnonymously(auth);
-    me = { uid: cred.user.uid, name };
+    const u = auth.currentUser && !auth.currentUser.isAnonymous ? auth.currentUser : (await signInAnonymously(auth)).user;
+    me = { uid: u.uid, name, email: u.email ? u.email.toLowerCase() : null };
     await setupAudio();
     await enter();
     detectHeadphones();
@@ -288,7 +300,7 @@ async function enter() {
   $('lobby').classList.add('hidden'); $('meeting').classList.remove('hidden');
   $('roomLbl').textContent = room; location.hash = room;
 
-  const mine = { name: me.name, audio: !!track('audio')?.enabled, video: !!track('video')?.enabled, hand: false, sharing: false, wr: true, joinedAt: Date.now(), seen: Date.now() };
+  const mine = { name: me.name, ...(me.email ? { email: me.email } : {}), audio: !!track('audio')?.enabled, video: !!track('video')?.enabled, hand: false, sharing: false, wr: true, joinedAt: Date.now(), seen: Date.now() };
   roster[me.uid] = mine; paint(me.uid); watch(me.uid, localStream);
 
   // drop stale signals from earlier sessions of this identity
