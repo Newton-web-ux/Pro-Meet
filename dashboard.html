@@ -224,7 +224,7 @@ onAuthStateChanged(auth, u => {
   const g = !!u && !u.isAnonymous;
   if (u && g !== lastG) { if (lastG !== undefined || g) track(g ? 'login' : 'logout', g ? 'google' : 'signed out'); lastG = g; }
   $('cdot').classList.toggle('on', !!u);
-  $('ctxt').textContent = g ? (u.displayName || u.email) : u ? 'Guest · saved in this browser' : 'Connecting…';
+  $('ctxt').textContent = g ? (u.displayName ? u.displayName + ' \u00b7 ' + u.email : u.email) : u ? 'Guest · saved in this browser' : 'Connecting…';
   $('authBtn').textContent = g ? 'Sign out' : 'Sign in with Google';
   $('sub').textContent = g ? 'Your rooms and schedule sync to your Google account on every device.' : 'Sign in with Google to sync your rooms and schedule across devices.';
   unsubU?.(); unsubU = null; uref = null;
@@ -233,9 +233,11 @@ onAuthStateChanged(auth, u => {
     wasG = true; uref = doc(db, 'users', u.uid);
     unsubU = onSnapshot(uref, snap => {
       if (snap.metadata.hasPendingWrites) return;
+      const em = (u.email || '').toLowerCase();
       if (snap.exists()) S = { name: '', rooms: [], sched: [], hist: [], ...snap.data() };
-      else { if (!S.name) S.name = u.displayName || ''; setDoc(uref, S).then(() => { try { localStorage.removeItem(K); } catch {} }).catch(() => {}); }
+      else { if (!S.name) S.name = u.displayName || ''; S.email = em; setDoc(uref, S).then(() => { try { localStorage.removeItem(K); } catch {} }).catch(() => {}); }
       if (!S.name && u.displayName) S.name = u.displayName;
+      if (em && S.email !== em) { S.email = em; save(); }   // backfill email for existing users
       try { localStorage.setItem('pm_name', S.name || ''); } catch {}
       mergeJoins(); syncSubs(); render(); reloadFiles();
     }, () => toast('Could not load cloud data. Publish the new Firestore rules.'));
