@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<head>
   <!-- Google Tag Manager -->
   <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-WQSC5F8Z"></script>
   <script>
@@ -419,7 +418,8 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
 </script>
 <script>
 /* Install tracking: reports visits, install prompt events, installs and installed-app launches to the Pro Meet backend.
- * Each browser gets a random device id (stored in localStorage). No personal data is sent unless you add a sign-in token. */
+ * Each browser gets a random device id (stored in localStorage). No personal data is sent unless you add a sign-in token.
+ * The user agent (ua) and the webdriver flag (wd) are sent so the server can ignore bots (isBot_ in Code.gs v11). */
 (function () {
   const GAS = 'https://script.google.com/macros/s/AKfycbzobOru4asruhqZ42bqwEAkMjHXcOeNwN-ic5wVco2Fvfy9E_p_hi6web3xgCyJ40lJjw/exec';
   let id = '';
@@ -433,7 +433,7 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
     try {
       fetch(GAS, {
         method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain' },   // text/plain avoids a CORS preflight
-        body: JSON.stringify({ action: 'install', event: ev, deviceId: id, mode: mode(), platform: navigator.platform || '', ua: navigator.userAgent, page: location.pathname })
+        body: JSON.stringify({ action: 'install', event: ev, deviceId: id, mode: mode(), platform: navigator.platform || '', ua: navigator.userAgent, wd: !!navigator.webdriver, page: location.pathname })
       }).catch(() => {});
     } catch (e) {}
   };
