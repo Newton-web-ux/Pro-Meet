@@ -3,6 +3,9 @@
  * - track(event, detail): sends an event to the Apps Script. If the visitor is signed in to Firebase, their token is
  *   attached so the server can record the login status (google / guest). Meeting create/join and file upload/download
  *   are recorded by the server itself, so they are not sent from here.
+ * - Traffic sources (Code.gs v13): page_view events also carry document.referrer and an optional utm_source / ?ref= value,
+ *   so the server can classify where the visitor came from (Google, Bing, WhatsApp, Direct ...). Other events do not send
+ *   them, so a device's first source is never recorded wrongly as Direct.
  * - Bots: browsers that look like crawlers or automation (navigator.webdriver, or a bot-like user agent) send nothing.
  *   The user agent and the webdriver flag are also sent, so the server (isBot_ in Code.gs v11) can ignore any that slip through.
  * - Also usable from any script as window.proMeetTrack('whiteboard_open'). whiteboard.js calls track() itself for opens and drawing; saves are logged by the server.
@@ -33,9 +36,17 @@ export async function track(event, detail) {
     let token = '';
     try { const a = getApps()[0], u = a && getAuth(a).currentUser; if (u) token = await u.getIdToken(); } catch {}
     const room = decodeURIComponent(location.hash.slice(1)).toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 40);
+
+    /* Traffic source: only page views carry it. utm_source / ?ref= (e.g. ?utm_source=whatsapp) wins over document.referrer. */
+    let src = {};
+    if (event === 'page_view') {
+      const q = new URLSearchParams(location.search);
+      src = { referrer: document.referrer || '', utm: q.get('utm_source') || q.get('ref') || '' };
+    }
+
     fetch(SCRIPT_URL, {
       method: 'POST', keepalive: true, headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain avoids a CORS preflight
-      body: JSON.stringify({ action: 'track', event, detail: detail || '', device: deviceId(), token, room, page: location.pathname, platform: navigator.platform || '', ua: UA, wd: WD })
+      body: JSON.stringify({ action: 'track', event, detail: detail || '', device: deviceId(), token, room, page: location.pathname, platform: navigator.platform || '', ua: UA, wd: WD, ...src })
     }).catch(() => {});
   } catch {}
 }
