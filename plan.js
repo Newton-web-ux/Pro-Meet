@@ -37,7 +37,18 @@ function A() {
   return _auth;
 }
 const free = () => ({ plan: 'free', billing: null, expires: null, limits: { ...FREE } });
-const firstUser = () => new Promise(res => { const off = onAuthStateChanged(A(), u => { off(); res(u); }); });
+
+const isG = u => !!u && !u.isAnonymous && !!u.email;
+const firstOf = auth => new Promise(res => { const off = onAuthStateChanged(auth, u => { off(); res(u); }); });
+/* The Google user: first from the 'dash' app (signed in on the dashboard), otherwise from the page's own app
+   (the optional "Sign in with Google" button on the meeting page). Falls back to the 'dash' user (maybe a guest or null). */
+async function firstUser() {
+  const u = await firstOf(A());
+  if (isG(u)) return u;
+  const own = getApps().find(a => a.name !== 'dash');
+  if (own) { try { const x = await firstOf(getAuth(own)); if (isG(x)) return x; } catch {} }
+  return u;
+}
 
 function remember(p, uid) { mem = { p, at: Date.now() }; try { sessionStorage.setItem(CK, JSON.stringify({ uid, at: Date.now(), p })); } catch {} return p; }
 
@@ -48,7 +59,7 @@ export function getPlan(force) {
 
 async function load(force) {
   const u = await firstUser();
-  if (!u || u.isAnonymous || !u.email) return remember(free(), '');
+  if (!isG(u)) return remember(free(), '');
   if (!force) {
     try { const c = JSON.parse(sessionStorage.getItem(CK) || 'null'); if (c && c.uid === u.uid && Date.now() - c.at < TTL) { mem = { p: c.p, at: c.at }; return c.p; } } catch {}
   }
@@ -66,7 +77,7 @@ async function load(force) {
 export async function googleToken() {
   try {
     const u = await firstUser();
-    return u && !u.isAnonymous && u.email ? await u.getIdToken() : null;
+    return isG(u) ? await u.getIdToken() : null;
   } catch { return null; }
 }
 
