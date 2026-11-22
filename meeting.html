@@ -149,7 +149,7 @@ import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, addDoc, ge
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getPlan, googleToken } from './plan.js';
 import { SCRIPT_URL } from './meet-config.js';
-import { deviceId } from './analytics.js';
+import { deviceId, track as trackEvent } from './analytics.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA",
@@ -161,6 +161,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app), db = getFirestore(app);
+trackEvent('page_view', 'meeting');   // analytics: counts visits to the meeting page (deduped per device and room every 30 min)
 
 /* Calls the Apps Script. "token" proves who this tab is; "ptoken" (Google sign-in, if any) lets the server look up the host's plan. */
 async function gs(body) {
