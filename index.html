@@ -184,11 +184,12 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
 </svg>
 <a class="skip" href="#main">Skip to content</a>
 
+<!-- data-track="id": every element with this attribute is counted as an "index_click" (see analytics.js and the admin dashboard) -->
 <header class="nav">
   <div class="wrap">
-    <a class="logo" href="index.html" aria-label="Pro Meet home"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a>
-    <nav class="links" aria-label="Main"><a href="#features">Features</a><a href="#how">How it works</a><a href="#trust">Security</a><a href="payment.html">Pricing</a><a href="#faq">FAQ</a></nav>
-    <div class="nav-cta"><button class="btn alt" id="installBtn" type="button" hidden>Install app</button><a class="btn" href="dashboard.html">Open dashboard</a></div>
+    <a class="logo" href="index.html" aria-label="Pro Meet home" data-track="nav_logo"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a>
+    <nav class="links" aria-label="Main"><a href="#features" data-track="nav_features">Features</a><a href="#how" data-track="nav_how">How it works</a><a href="#trust" data-track="nav_security">Security</a><a href="payment.html" data-track="nav_pricing">Pricing</a><a href="#faq" data-track="nav_faq">FAQ</a></nav>
+    <div class="nav-cta"><button class="btn alt" id="installBtn" type="button" hidden data-track="nav_install">Install app</button><a class="btn" href="dashboard.html" data-track="nav_dashboard">Open dashboard</a></div>
   </div>
 </header>
 
@@ -200,13 +201,13 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
         <h1>Video meetings with a whiteboard, notes and host controls built in.</h1>
         <p class="lead">Start a room, share the link, and talk, draw, take notes and share files in one place. Guests join with just a name.</p>
         <div class="cta-row">
-          <a class="btn lg" href="dashboard.html">Open dashboard</a>
-          <button class="btn alt lg" id="instant" type="button">Start instant meeting</button>
+          <a class="btn lg" href="dashboard.html" data-track="hero_dashboard">Open dashboard</a>
+          <button class="btn alt lg" id="instant" type="button" data-track="hero_instant">Start instant meeting</button>
         </div>
         <form class="join" id="joinForm">
           <label class="sr" for="code">Room code</label>
           <input id="code" placeholder="Have a room code? Enter it here" maxlength="40" autocomplete="off">
-          <button class="btn alt" type="submit">Join</button>
+          <button class="btn alt" type="submit" data-track="hero_join">Join</button>
         </form>
         <p class="fine">Best for small groups of up to 8 people. Chrome and Edge give the fullest experience; Firefox and Safari work too, with a few limits.</p>
       </div>
@@ -359,7 +360,7 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
           </ul>
         </div>
       </div>
-      <p class="links-row">Read the full <a href="privacy.html">Privacy Policy</a> and <a href="terms.html">Terms of Use</a>.</p>
+      <p class="links-row">Read the full <a href="privacy.html" data-track="trust_privacy">Privacy Policy</a> and <a href="terms.html" data-track="trust_terms">Terms of Use</a>.</p>
     </div>
   </section>
 
@@ -367,14 +368,14 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
     <div class="wrap">
       <div class="head"><h2>Questions, answered.</h2></div>
       <div class="faq">
-        <details><summary>Do I need an account?</summary><p>No. Guests join with a name and a room code. Signing in with Google is optional and only syncs your room list, schedule and history across your devices.</p></details>
-        <details><summary>How many people can join one room?</summary><p>Pro Meet connects every participant directly to every other participant, so quality is best with up to about 8 people. Larger rooms can work but use more bandwidth on each device.</p></details>
-        <details><summary>Which browsers and devices work?</summary><p>Current Chrome and Edge give the fullest experience. Firefox and Safari work, but choosing a speaker is not available there and background effects can be slower. Phones and tablets work in their browsers.</p></details>
-        <details><summary>Why might someone fail to connect?</summary><p>Pro Meet uses public STUN servers and no relay server. On very restrictive networks, such as some corporate firewalls, a direct connection may not form. Trying another network or a phone hotspot usually fixes it.</p></details>
-        <details><summary>Does Pro Meet record meetings?</summary><p>No. Audio and video are not recorded or stored. Participants can still capture their own screen, so tell people before you record anything.</p></details>
-        <details><summary>Where do saved files go?</summary><p>When someone clicks Save or Share on the whiteboard or notes, the file goes to a Google Drive folder named after the room, owned by whoever runs this service. A card appears in the chat if it was shared.</p></details>
-        <details><summary>How do I find a past meeting?</summary><p>Open the dashboard. Past meetings list the people who attended, the shared notes written during the meeting and any files saved. Rooms you have joined before are remembered in your browser, or in your account if you signed in.</p></details>
-        <details><summary>Are the host controls a security feature?</summary><p>No. They help run a meeting, but they are applied by each participant's browser. Use a long, random room code if you need to keep uninvited people out.</p></details>
+        <details><summary data-track="faq_question">Do I need an account?</summary><p>No. Guests join with a name and a room code. Signing in with Google is optional and only syncs your room list, schedule and history across your devices.</p></details>
+        <details><summary data-track="faq_question">How many people can join one room?</summary><p>Pro Meet connects every participant directly to every other participant, so quality is best with up to about 8 people. Larger rooms can work but use more bandwidth on each device.</p></details>
+        <details><summary data-track="faq_question">Which browsers and devices work?</summary><p>Current Chrome and Edge give the fullest experience. Firefox and Safari work, but choosing a speaker is not available there and background effects can be slower. Phones and tablets work in their browsers.</p></details>
+        <details><summary data-track="faq_question">Why might someone fail to connect?</summary><p>Pro Meet uses public STUN servers and no relay server. On very restrictive networks, such as some corporate firewalls, a direct connection may not form. Trying another network or a phone hotspot usually fixes it.</p></details>
+        <details><summary data-track="faq_question">Does Pro Meet record meetings?</summary><p>No. Audio and video are not recorded or stored. Participants can still capture their own screen, so tell people before you record anything.</p></details>
+        <details><summary data-track="faq_question">Where do saved files go?</summary><p>When someone clicks Save or Share on the whiteboard or notes, the file goes to a Google Drive folder named after the room, owned by whoever runs this service. A card appears in the chat if it was shared.</p></details>
+        <details><summary data-track="faq_question">How do I find a past meeting?</summary><p>Open the dashboard. Past meetings list the people who attended, the shared notes written during the meeting and any files saved. Rooms you have joined before are remembered in your browser, or in your account if you signed in.</p></details>
+        <details><summary data-track="faq_question">Are the host controls a security feature?</summary><p>No. They help run a meeting, but they are applied by each participant's browser. Use a long, random room code if you need to keep uninvited people out.</p></details>
       </div>
     </div>
   </section>
@@ -383,7 +384,7 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
     <div class="wrap">
       <div class="cta">
         <div><h2>Ready when you are.</h2><p>Open the dashboard to start a meeting in a few seconds.</p></div>
-        <a class="btn lg" href="dashboard.html">Open dashboard</a>
+        <a class="btn lg" href="dashboard.html" data-track="cta_dashboard">Open dashboard</a>
       </div>
     </div>
   </section>
@@ -392,10 +393,10 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
 <footer class="foot">
   <div class="wrap">
     <div class="foot-grid">
-      <div><a class="logo" href="index.html" aria-label="Pro Meet home"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a><p>Video meetings with a whiteboard, notes and host controls built in.</p></div>
-      <div><h4>Product</h4><a href="#features">Features</a><a href="#how">How it works</a><a href="#trust">Security</a><a href="payment.html">Pricing</a><a href="#faq">FAQ</a></div>
-      <div><h4>Get started</h4><a href="dashboard.html">Dashboard</a><a href="meeting.html">Join a meeting</a></div>
-      <div><h4>Legal</h4><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></div>
+      <div><a class="logo" href="index.html" aria-label="Pro Meet home" data-track="foot_logo"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a><p>Video meetings with a whiteboard, notes and host controls built in.</p></div>
+      <div><h4>Product</h4><a href="#features" data-track="foot_features">Features</a><a href="#how" data-track="foot_how">How it works</a><a href="#trust" data-track="foot_security">Security</a><a href="payment.html" data-track="foot_pricing">Pricing</a><a href="#faq" data-track="foot_faq">FAQ</a></div>
+      <div><h4>Get started</h4><a href="dashboard.html" data-track="foot_dashboard">Dashboard</a><a href="meeting.html" data-track="foot_join">Join a meeting</a></div>
+      <div><h4>Legal</h4><a href="terms.html" data-track="foot_terms">Terms of Use</a><a href="privacy.html" data-track="foot_privacy">Privacy Policy</a></div>
     </div>
     <div class="foot-base">© <span id="yr">2026</span> Pro Meet. All rights reserved.</div>
   </div>
@@ -459,6 +460,13 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
   });
   addEventListener('appinstalled', () => { track('installed'); if (btn) btn.hidden = true; });
 })();
+</script>
+<script type="module">
+/* Analytics (v15): counts index page views (with traffic source and platform) and, through the click listener inside
+ * analytics.js, every click on an element that has a data-track attribute. Needs meet-config.js (SCRIPT_URL) next to it.
+ * The install snippet above sends no referrer, so this page_view is not double counted with the install 'visit' event. */
+import { track } from './analytics.js';
+track('page_view');
 </script>
 <script>
 (function removeHTML(){
