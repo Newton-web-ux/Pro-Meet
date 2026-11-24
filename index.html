@@ -59,7 +59,7 @@
 </script>
 <script>
 // Old invite links looked like index.html#room-code. Send those to the meeting; keep section anchors on this page.
-if (/^#.+/.test(location.hash) && !/^#(features|how|trust|faq|top)$/.test(location.hash)) location.replace('meeting.html' + location.hash);
+if (/^#.+/.test(location.hash) && !/^#(features|how|trust|faq|help|top)$/.test(location.hash)) location.replace('meeting.html' + location.hash);
 </script>
 <link rel="stylesheet" href="site.css">
 <style>
@@ -154,6 +154,17 @@ summary::after{content:"+";color:var(--mut);font-size:22px;line-height:1}
 details[open] summary::after{content:"–"}
 details p{color:var(--mut);margin-top:10px;max-width:68ch}
 
+/* Comments & Help */
+.help-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:48px;margin-top:34px;align-items:start}
+.help-form{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;display:flex;flex-direction:column;gap:14px}
+.help-form label{font-size:13px;color:var(--mut);display:flex;flex-direction:column;gap:6px}
+.help-form input,.help-form select,.help-form textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);font:inherit}
+.help-form textarea{min-height:130px;resize:vertical}
+.help-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.help-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.help-msg{font-size:14px;min-height:20px}.help-msg.ok{color:var(--grn)}.help-msg.err{color:var(--red)}
+.help-count{font-size:12px;color:var(--mut);text-align:right}
+
 /* Call to action */
 .cta-sec{padding:90px 0 20px}
 .cta{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:46px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
@@ -167,8 +178,9 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
   .facts{grid-template-columns:1fr 1fr}
   .more{grid-template-columns:1fr 1fr}
   .steps{grid-template-columns:1fr}
+  .help-grid{grid-template-columns:1fr;gap:28px}
 }
-@media(max-width:560px){.more{grid-template-columns:1fr}.cta{padding:30px}.join{flex-wrap:wrap}.hrow{grid-template-columns:80px 1fr 38px}.hrow .chip{display:none}}
+@media(max-width:560px){.more{grid-template-columns:1fr}.cta{padding:30px}.join{flex-wrap:wrap}.hrow{grid-template-columns:80px 1fr 38px}.hrow .chip{display:none}.help-row{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.mk-t,.meter-bars i{animation:none}.t1{border-color:var(--grn)}.meter-bars i{height:var(--h)}html{scroll-behavior:auto}}
 </style>
 </head>
@@ -188,7 +200,7 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="index.html" aria-label="Pro Meet home" data-track="nav_logo"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a>
-    <nav class="links" aria-label="Main"><a href="#features" data-track="nav_features">Features</a><a href="#how" data-track="nav_how">How it works</a><a href="#trust" data-track="nav_security">Security</a><a href="payment.html" data-track="nav_pricing">Pricing</a><a href="#faq" data-track="nav_faq">FAQ</a></nav>
+    <nav class="links" aria-label="Main"><a href="#features" data-track="nav_features">Features</a><a href="#how" data-track="nav_how">How it works</a><a href="#trust" data-track="nav_security">Security</a><a href="payment.html" data-track="nav_pricing">Pricing</a><a href="#faq" data-track="nav_faq">FAQ</a><a href="#help" data-track="nav_help">Comments &amp; Help</a></nav>
     <div class="nav-cta"><button class="btn alt" id="installBtn" type="button" hidden data-track="nav_install">Install app</button><a class="btn" href="dashboard.html" data-track="nav_dashboard">Open dashboard</a></div>
   </div>
 </header>
@@ -380,6 +392,37 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
     </div>
   </section>
 
+  <section class="sec" id="help">
+    <div class="wrap">
+      <div class="head"><h2>Comments &amp; help.</h2><p>Found a problem, have an idea, or need a hand? Send us a message. You do not need an account.</p></div>
+      <div class="help-grid">
+        <div>
+          <ul class="ticks">
+            <li>Comment: tell us what you like or what to improve</li>
+            <li>Help: ask a question about a meeting, a room or a payment</li>
+            <li>Bug: something did not work as expected</li>
+            <li>Idea: suggest a feature you would like to see</li>
+          </ul>
+          <p class="foot-note">Add your email if you would like a reply. Please do not include passwords or private meeting details.</p>
+        </div>
+        <form class="help-form" id="helpForm" novalidate>
+          <div class="help-row">
+            <label>Type
+              <select id="hType"><option value="comment">Comment</option><option value="help">Help</option><option value="bug">Bug report</option><option value="idea">Idea</option></select>
+            </label>
+            <label>Your name<input id="hName" maxlength="60" autocomplete="name" placeholder="Optional"></label>
+          </div>
+          <label>Email (for a reply)<input id="hEmail" type="email" maxlength="120" autocomplete="email" placeholder="Optional"></label>
+          <label>Message<textarea id="hMsg" maxlength="2000" required placeholder="How can we help?"></textarea></label>
+          <div class="help-count"><span id="hCount">0</span> / 2000</div>
+          <input class="help-hp" id="hWeb" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button class="btn lg" id="hSend" type="submit" data-track="help_send">Send message</button>
+          <div class="help-msg" id="hStatus" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
   <section class="cta-sec">
     <div class="wrap">
       <div class="cta">
@@ -394,7 +437,7 @@ details p{color:var(--mut);margin-top:10px;max-width:68ch}
   <div class="wrap">
     <div class="foot-grid">
       <div><a class="logo" href="index.html" aria-label="Pro Meet home" data-track="foot_logo"><svg viewBox="0 0 40 40" aria-hidden="true"><use href="#logo"/></svg><span>Pro <em>Meet</em></span></a><p>Video meetings with a whiteboard, notes and host controls built in.</p></div>
-      <div><h4>Product</h4><a href="#features" data-track="foot_features">Features</a><a href="#how" data-track="foot_how">How it works</a><a href="#trust" data-track="foot_security">Security</a><a href="payment.html" data-track="foot_pricing">Pricing</a><a href="#faq" data-track="foot_faq">FAQ</a></div>
+      <div><h4>Product</h4><a href="#features" data-track="foot_features">Features</a><a href="#how" data-track="foot_how">How it works</a><a href="#trust" data-track="foot_security">Security</a><a href="payment.html" data-track="foot_pricing">Pricing</a><a href="#faq" data-track="foot_faq">FAQ</a><a href="#help" data-track="foot_help">Comments &amp; Help</a></div>
       <div><h4>Get started</h4><a href="dashboard.html" data-track="foot_dashboard">Dashboard</a><a href="meeting.html" data-track="foot_join">Join a meeting</a></div>
       <div><h4>Legal</h4><a href="terms.html" data-track="foot_terms">Terms of Use</a><a href="privacy.html" data-track="foot_privacy">Privacy Policy</a></div>
     </div>
@@ -459,6 +502,36 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
     deferred = null; btn.hidden = true;
   });
   addEventListener('appinstalled', () => { track('installed'); if (btn) btn.hidden = true; });
+})();
+</script>
+<script>
+/* Comments & Help form: posts to the Pro Meet backend (action "feedback"); stored in the "Comments and Helps" sheet tab. */
+(function () {
+  const GAS = 'https://script.google.com/macros/s/AKfycbwxTNNshWZRBe-x2BdfHfBxx7Q_gBO9iwISknezvd4cP5kjWOKyUtWlgrIIXX__0vaYfQ/exec';
+  const f = document.getElementById('helpForm'); if (!f) return;
+  const g = id => document.getElementById(id), st = g('hStatus'), btn = g('hSend');
+  const say = (t, c) => { st.textContent = t; st.className = 'help-msg ' + (c || ''); };
+  g('hMsg').addEventListener('input', () => { g('hCount').textContent = g('hMsg').value.length; });
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const msg = g('hMsg').value.trim(), email = g('hEmail').value.trim();
+    if (msg.length < 5) { say('Please write a little more (at least 5 characters).', 'err'); return g('hMsg').focus(); }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { say('That email address does not look right.', 'err'); return g('hEmail').focus(); }
+    let dev = ''; try { dev = localStorage.getItem('pm_dev') || ''; } catch (x) {}
+    if (!dev) { dev = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12); try { localStorage.setItem('pm_dev', dev); } catch (x) {} }
+    btn.disabled = true; say('Sending…');
+    try {
+      const r = await fetch(GAS, {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' },                 // text/plain avoids a CORS preflight
+        body: JSON.stringify({ action: 'feedback', type: g('hType').value, name: g('hName').value, email: email, message: msg,
+          website: g('hWeb').value, device: dev, page: location.pathname, ua: navigator.userAgent, wd: !!navigator.webdriver })
+      });
+      const j = await r.json();
+      if (j.ok) { say('Thank you! Your message was sent.', 'ok'); g('hMsg').value = ''; g('hCount').textContent = '0'; }
+      else say(j.error === 'too many requests' ? 'You have sent several messages recently. Please try again later.' : 'Sorry, we could not send that. Please check your message and try again.', 'err');
+    } catch (x) { say('Network problem. Please try again.', 'err'); }
+    btn.disabled = false;
+  });
 })();
 </script>
 <script type="module">
