@@ -462,10 +462,16 @@ for (let i = 0; i < 24; i++) {                                   // decorative m
 })();
 </script>
 <script type="module">
-/* Analytics (v15): counts index page views (with traffic source and platform) and, through the click listener inside
- * analytics.js, every click on an element that has a data-track attribute. Needs meet-config.js (SCRIPT_URL) next to it.
- * The install snippet above sends no referrer, so this page_view is not double counted with the install 'visit' event. */
+import { getApps, initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { track } from './analytics.js';
+try {
+  if (!getApps().length) initializeApp({
+    apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA", authDomain: "pro-meet-9e44e.firebaseapp.com", projectId: "pro-meet-9e44e",
+    storageBucket: "pro-meet-9e44e.firebasestorage.app", messagingSenderId: "360559567109", appId: "1:360559567109:web:0f9bd0d407db2a5365d76c"
+  });
+  await getAuth(getApps()[0]).authStateReady();     // wait until the saved sign-in is restored
+} catch (e) {}
 track('page_view');
 </script>
 <script>
