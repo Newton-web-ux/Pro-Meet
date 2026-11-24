@@ -192,6 +192,7 @@ $('gBtn').onclick = async () => {
     const { user } = await signInWithPopup(auth, new GoogleAuthProvider());
     if (!$('nameIn').value.trim()) $('nameIn').value = user.displayName || '';
     $('gBtn').textContent = 'Signed in as ' + user.email;
+    trackEvent('login', 'google');   // analytics: records a Google sign-in made on the meeting page (the token now carries the email)
   } catch (e) { $('err').textContent = 'Google sign-in failed (' + (e.code || e.message) + ')'; }
 };
 
