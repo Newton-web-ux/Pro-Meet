@@ -15,6 +15,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
 .brand{font-weight:700;font-size:18px;letter-spacing:-.02em}.brand em{font-style:normal;color:var(--acc)}.brand small{color:var(--mut);font-weight:500;margin-left:8px;font-size:13px}
 .tr{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--mut)}
 .btn{background:var(--acc);color:#fff;padding:9px 16px;border-radius:10px;font-weight:600}.btn:hover{filter:brightness(1.1)}.btn.alt{background:#222a36;color:var(--txt)}
+.btn.sm{padding:5px 10px;border-radius:8px;font-size:12px}.btn.ok{background:rgba(34,197,94,.18);color:var(--grn)}.btn.no{background:rgba(239,68,68,.16);color:#ff7b7b}
 .ld{display:inline-flex;align-items:center;gap:6px}.dot{width:8px;height:8px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 3px rgba(34,197,94,.2);animation:p 2s infinite}@keyframes p{50%{opacity:.4}}
 main{max-width:1200px;margin:0 auto;padding:24px 28px 60px}
 .gate{max-width:420px;margin:12vh auto;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:32px}
@@ -28,9 +29,10 @@ h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
 .chart h3{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:15px;margin-bottom:10px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button{padding:5px 11px;border-radius:99px;background:#222a36;color:var(--mut);font-size:12px}.tabs button.on{background:var(--acc);color:#fff}
 .cols{display:grid;grid-template-columns:1.6fr 1fr;gap:12px;margin-top:12px}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}th{color:var(--mut);font-weight:500;font-size:12px}
 .tw{overflow-x:auto}
-.pill{font-size:11px;padding:2px 8px;border-radius:99px;background:#222a36;color:var(--mut)}.pill.g{background:rgba(34,197,94,.15);color:var(--grn)}.pill.b{background:rgba(45,140,255,.15);color:var(--acc)}.pill.v{background:rgba(167,139,250,.15);color:var(--vio)}.pill.a{background:rgba(245,158,11,.15);color:var(--amb)}.pill.p{background:rgba(244,114,182,.15);color:#f472b6}
+.pill{font-size:11px;padding:2px 8px;border-radius:99px;background:#222a36;color:var(--mut)}.pill.g{background:rgba(34,197,94,.15);color:var(--grn)}.pill.b{background:rgba(45,140,255,.15);color:var(--acc)}.pill.v{background:rgba(167,139,250,.15);color:var(--vio)}.pill.a{background:rgba(245,158,11,.15);color:var(--amb)}.pill.p{background:rgba(244,114,182,.15);color:#f472b6}.pill.r{background:rgba(239,68,68,.15);color:#ff7b7b}
 .note{color:var(--mut);font-size:12px;margin-top:10px;line-height:1.5}
 .sr{display:grid;grid-template-columns:170px minmax(60px,1fr) 78px 78px 78px;gap:12px;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--line)}
 .sr.h{color:var(--mut);font-size:12px;padding-top:0}.sr:last-child{border-bottom:0}
@@ -42,7 +44,35 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 @media(max-width:860px){.sr,.sr.wide{grid-template-columns:120px minmax(40px,1fr) 56px 56px 56px;gap:8px}}
 #msg{margin-bottom:14px;color:#ff7b7b;font-size:13px}
-@media(max-width:860px){.cols{grid-template-columns:1fr}.top,main{padding-left:16px;padding-right:16px}}
+@media(max-width:860px){.cols,.cols2{grid-template-columns:1fr}.top,main{padding-left:16px;padding-right:16px}}
+
+/* v19 additions */
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.nav button{padding:8px 14px;border-radius:10px;background:#1b212b;color:var(--mut);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.nav button.on{background:var(--acc);color:#fff}
+.nav .bd{background:var(--red);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;font-weight:700}
+.sel,.inp{background:#1b212b;border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:7px 10px;font:inherit;font-size:13px}
+.inp{min-width:220px}.sel:focus,.inp:focus{outline:1px solid var(--acc)}
+.alert{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--mut);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;line-height:1.45}
+.alert.bad{border-left-color:var(--red)}.alert.warn{border-left-color:var(--amb)}.alert.info{border-left-color:var(--acc)}.alert.good{border-left-color:var(--grn)}
+.fr{display:grid;grid-template-columns:230px minmax(60px,1fr) 70px 70px 90px;gap:12px;align-items:center;font-size:13px;padding:8px 0;border-bottom:1px solid var(--line)}
+.fr.h{color:var(--mut);font-size:12px;padding-top:0}.fr:last-child{border-bottom:0}.fr .bar{height:10px;border-radius:99px;background:#222a36;overflow:hidden}.fr .bar i{display:block;height:100%;border-radius:99px;background:var(--acc)}
+.fr .n{text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:860px){.fr{grid-template-columns:120px minmax(40px,1fr) 52px 52px 60px;gap:8px}}
+.heat{display:grid;grid-template-columns:38px repeat(24,minmax(0,1fr));gap:3px;font-size:10px;color:var(--mut);align-items:center}
+.heat i{display:block;aspect-ratio:1/1;border-radius:3px;background:#1b212b}
+.heat .hh{text-align:center}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.row .sp{flex:1}
+.fb{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#141922}
+.fb .hd{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--mut);margin-bottom:8px}
+.fb p{font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.fb .hd .sp{flex:1}
+.sub{font-size:12px;color:var(--mut)}
+.good{color:var(--grn)}.badc{color:#ff7b7b}
+.frm{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222a36;border:1px solid var(--line);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:13px;z-index:20}
+.toast.err{color:#ff7b7b}
 </style>
 </head>
 <body>
@@ -59,6 +89,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
     <div class="brand">Pro <em>Meet</em><small>Admin dashboard</small></div>
     <div class="tr">
       <span class="ld"><span class="dot"></span><span id="upd">Loading…</span></span>
+      <select class="sel" id="range" title="Chart range"></select>
+      <label class="sub"><input type="checkbox" id="auto" checked> Auto-refresh</label>
       <span id="who"></span>
       <button class="btn alt" id="refresh">↻ Refresh</button>
       <button class="btn alt" id="signOut">Sign out</button>
@@ -66,33 +98,45 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
   </header>
   <main>
     <div id="msg"></div>
-    <div id="sections"></div>
+    <nav class="nav" id="nav"></nav>
+    <div id="alerts"></div>
 
-    <div class="card chart" style="margin-top:22px">
-      <h3><span>Last 14 days</span><div class="tabs" id="tabs"></div></h3>
-      <div id="chart"></div>
-    </div>
+    <section id="p-overview">
+      <div id="sections"></div>
 
-    <div class="cols">
-      <div class="card">
-        <h3 style="font-size:15px;margin-bottom:8px">Recent activity</h3>
-        <div class="tw"><table><thead><tr><th>Time</th><th>Event</th><th>User</th><th>Room</th><th>Detail</th></tr></thead><tbody id="recent"></tbody></table></div>
+      <div class="card chart" style="margin-top:22px">
+        <h3><span id="chartTitle">Last 14 days</span><div class="tabs" id="tabs"></div></h3>
+        <div id="chart"></div>
       </div>
-      <div class="card">
-        <h3 style="font-size:15px;margin-bottom:8px">Plans</h3>
-        <div class="grid" id="plans" style="grid-template-columns:1fr 1fr"></div>
-        <p class="note">Events are stored from the day tracking was enabled. Recordings are counted from the day the <code>recording_save</code> logging was added to the Apps Script. “Signed in” and “Guests” count devices by their latest known status. Traffic sources come from the referrer the website sends with page views. Index page clicks are counted from the day <code>index_click</code> tracking was deployed.</p>
+
+      <div class="cols">
+        <div class="card">
+          <h3 style="font-size:15px;margin-bottom:8px">Recent activity</h3>
+          <div class="tw"><table><thead><tr><th>Time</th><th>Event</th><th>User</th><th>Room</th><th>Detail</th></tr></thead><tbody id="recent"></tbody></table></div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:15px;margin-bottom:8px">Plans</h3>
+          <div class="grid" id="plans" style="grid-template-columns:1fr 1fr"></div>
+          <p class="note">Events are stored from the day tracking was enabled. Recordings are counted from the day the <code>recording_save</code> logging was added to the Apps Script. “Signed in” and “Guests” count devices by their latest known status. Traffic sources come from the referrer the website sends with page views. Index page clicks are counted from the day <code>index_click</code> tracking was deployed.</p>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <section id="p-growth" hidden></section>
+    <section id="p-revenue" hidden></section>
+    <section id="p-users" hidden></section>
+    <section id="p-feedback" hidden></section>
+    <section id="p-system" hidden></section>
   </main>
 </div>
+<div class="toast" id="toast" hidden></div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 /* Your Apps Script web app (the /exec URL) */
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAFNUKKbTv4udNJQaq66OPq0rdY6I47abNUOHyzTmfvlOKmK7zdbqBInETQHfLKyLT/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrRP-bCYIzthvTUxE_-FROszo0GgnKEwF6HlofrJDX-_6r7MBK777TP2YBYUy4icS7jg/exec';
 
 const app = initializeApp({
   apiKey: "AIzaSyD66Xgj2uhcBOzYhwTuAcn5_wxLxDMkCeA", authDomain: "pro-meet-9e44e.firebaseapp.com", projectId: "pro-meet-9e44e",
@@ -102,11 +146,31 @@ const auth = getAuth(app);
 const $ = id => document.getElementById(id);
 const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
 const fmt = n => (n == null ? '–' : Number(n).toLocaleString());
-let D = null, series = 'views', timer = null, busy = false;
+const inr = n => n == null ? '–' : '₹' + Number(n).toLocaleString('en-IN');
+const when = t => t ? new Date(t).toLocaleString([], { day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–';
+const day = t => t ? new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short', year: '2-digit' }) : '–';
+let D = null, series = 'views', timer = null, busy = false, range = 14, tab = 'overview';
+
+/* One call to the Apps Script: { action, token, ...extra } */
+async function api(action, extra) {
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action, token }, extra || {})) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'failed');
+  return j;
+}
+let toastT = null;
+function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
+function download(name, text) {
+  const a = document.createElement('a'), u = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  a.href = u; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+}
 
 $('signIn').onclick = async () => { $('gerr').textContent = ''; try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch (e) { $('gerr').textContent = 'Sign-in failed: ' + (e.code || e.message); } };
 $('signOut').onclick = () => signOut(auth);
-$('refresh').onclick = () => load();
+$('refresh').onclick = () => { load(); refreshTab(true); };
+[7, 14, 30, 90].forEach(n => { const o = el('option', '', 'Last ' + n + ' days'); o.value = n; if (n === range) o.selected = true; $('range').append(o); });
+$('range').onchange = e => { range = +e.target.value; load(); };
 
 onAuthStateChanged(auth, u => {
   clearInterval(timer);
@@ -114,17 +178,16 @@ onAuthStateChanged(auth, u => {
   $('gate').hidden = ok; $('app').hidden = !ok;
   if (!ok) return;
   $('who').textContent = u.email || '';
+  buildNav();
+  const h = (location.hash || '').slice(1); showTab(NAV.some(x => x[0] === h) ? h : 'overview');
   load();
-  timer = setInterval(() => { if (!document.hidden) load(); }, 30000);
+  timer = setInterval(() => { if (!document.hidden && $('auto').checked) load(); }, 30000);
 });
 
 async function load() {
   if (busy || !auth.currentUser) return; busy = true;
   try {
-    const token = await auth.currentUser.getIdToken();
-    const r = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'adminStats', token }) });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'failed');
+    const j = await api('adminStats', { days: range });
     D = j; $('msg').textContent = ''; render();
   } catch (e) {
     const m = String(e.message || e);
@@ -135,6 +198,29 @@ async function load() {
     } else $('msg').textContent = 'Could not load stats (' + m + ').';
   }
   busy = false;
+}
+
+/* ---------- navigation ---------- */
+const NAV = [['overview', 'Overview'], ['growth', 'Growth'], ['revenue', 'Revenue'], ['users', 'Users'], ['feedback', 'Feedback'], ['system', 'System']];
+function buildNav() {
+  const n = $('nav'); n.replaceChildren();
+  NAV.forEach(([k, l]) => {
+    const b = el('button', k === tab ? 'on' : '', l); b.dataset.k = k;
+    b.append(el('span', 'bd', '')); b.lastChild.hidden = true;
+    b.onclick = () => showTab(k); n.append(b);
+  });
+}
+function showTab(k) {
+  tab = k; try { history.replaceState(null, '', '#' + k); } catch (e) {}
+  NAV.forEach(([id]) => { $('p-' + id).hidden = id !== k; });
+  $('nav').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+  refreshTab(false);
+}
+function badge(k, n) { const b = $('nav').querySelector('button[data-k="' + k + '"] .bd'); if (!b) return; b.hidden = !n; b.textContent = n || ''; }
+function refreshTab(force) {
+  if (tab === 'revenue') loadPayments(force);
+  else if (tab === 'users') loadUsers(force);
+  else if (tab === 'feedback') loadFeedback(force);
 }
 
 /* Traffic source labels and colours. Keys come from classifyRef_ in the Apps Script. */
@@ -203,10 +289,10 @@ function drawIndex(S, ix) {
    ['Users who clicked', fmt(ix.clickers), 'Distinct devices that clicked anything', ix.clickers > 0],
    ['Click rate', rate, 'Users who clicked ÷ visitors', false],
    ['Total clicks', fmt(ix.clicks), fmt(ix.clicks7) + ' in last 7 d', false],
-   ['Most clicked', top ? ckLabel(top.k) : '–', top ? fmt(top.users) + ' users · ' + fmt(top.clicks) + ' clicks' : '\u00a0', false]
+   ['Most clicked', top ? ckLabel(top.k) : '–', top ? fmt(top.users) + ' users · ' + fmt(top.clicks) + ' clicks' : ' ', false]
   ].forEach(([l, v, s, hot], i) => {
     const c = el('div', 'card k' + (hot ? ' hot' : '')), b = el('b', i === 4 ? 'txt' : '', v); if (i === 4) b.title = v;
-    c.append(el('span', '', l), b, el('small', '', s || '\u00a0')); g.append(c);
+    c.append(el('span', '', l), b, el('small', '', s || ' ')); g.append(c);
   });
   S.append(g);
 
@@ -224,21 +310,22 @@ function drawIndex(S, ix) {
     r.append(nm, bar, el('span', 'n', fmt(x.users)), el('span', 'n', fmt(x.clicks)), el('span', 'n', fmt(x.clicks7)));
     card.append(r);
   });
-  card.append(el('p', 'note', 'Users = distinct devices (a device id kept in the visitor\u2019s browser). Visitors = devices that loaded the index page with tracking on; clicks from a device with no recorded page view can push the click rate to 100%. Repeat clicks on the same button within 5 seconds are counted once.'));
+  card.append(el('p', 'note', 'Users = distinct devices (a device id kept in the visitor’s browser). Visitors = devices that loaded the index page with tracking on; clicks from a device with no recorded page view can push the click rate to 100%. Repeat clicks on the same button within 5 seconds are counted once.'));
   S.append(card);
 }
 
 const EV = { page_view: ['Page view', ''], login: ['Login', 'g'], logout: ['Logout', 'a'], meeting_create: ['Meeting created', 'b'], meeting_join: ['Meeting join', 'b'],
   whiteboard_open: ['Whiteboard open', 'v'], whiteboard_draw: ['Whiteboard draw', 'v'], whiteboard_save: ['Whiteboard save', 'v'], recording_save: ['Recording saved', 'a'],
   file_upload: ['File upload', ''], file_download: ['File download', ''], notes_save: ['Notes saved', ''], file_share: ['File share', ''], meeting_leave: ['Meeting leave', ''],
-  index_click: ['Index click', 'p'] };
+  index_click: ['Index click', 'p'], feedback_submit: ['Feedback', 'p'], admin_action: ['Admin action', 'r'] };
 
 function render() {
   const d = D, S = $('sections'); S.replaceChildren();
   $('upd').textContent = 'Updated ' + new Date(d.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  $('chartTitle').textContent = 'Last ' + (d.range || range) + ' days';
   const sec = (title, cards) => {
     S.append(el('h2', '', title)); const g = el('div', 'grid');
-    cards.forEach(([l, v, s, hot]) => { const c = el('div', 'card k' + (hot ? ' hot' : '')); c.append(el('span', '', l), el('b', '', fmt(v)), el('small', '', s || '\u00a0')); g.append(c); });
+    cards.forEach(([l, v, s, hot]) => { const c = el('div', 'card k' + (hot ? ' hot' : '')); c.append(el('span', '', l), el('b', '', fmt(v)), el('small', '', s || ' ')); g.append(c); });
     S.append(g);
   };
   sec('Live now', [
@@ -287,26 +374,370 @@ function render() {
       el('td', '', x.email || x.login || ''), el('td', '', x.room), el('td', '', det)); R.append(tr);
   });
   drawTabs(); drawChart();
+
+  /* v19 */
+  renderAlerts(d.alerts || []);
+  badge('revenue', d.plans.pending); badge('feedback', d.feedback ? d.feedback.new : 0);
+  renderGrowth(); renderRevenueSummary(); renderSystem();
+  if (tab === 'users') renderUsersTop();
 }
 
-const TABS = [['views', 'Page views', '#2d8cff'], ['clicks', 'Index clicks', '#f472b6'], ['logins', 'Logins', '#22c55e'], ['meetings', 'Meetings created', '#f59e0b'], ['joins', 'Meeting joins', '#38bdf8'], ['wb', 'Whiteboard', '#a78bfa'], ['rec', 'Recordings', '#ef4444']];
+const TABS = [['views', 'Page views', '#2d8cff'], ['newv', 'New visitors', '#38bdf8'], ['clicks', 'Index clicks', '#f472b6'], ['logins', 'Logins', '#22c55e'], ['meetings', 'Meetings created', '#f59e0b'], ['joins', 'Meeting joins', '#38bdf8'], ['wb', 'Whiteboard', '#a78bfa'], ['rec', 'Recordings', '#ef4444'], ['up', 'Uploads', '#64748b'], ['fb', 'Feedback', '#f472b6']];
 function drawTabs() {
   const t = $('tabs'); t.replaceChildren();
   TABS.forEach(([k, l]) => { const b = el('button', k === series ? 'on' : '', l); b.onclick = () => { series = k; drawTabs(); drawChart(); }; t.append(b); });
 }
-function drawChart() {
-  const s = D.series, col = TABS.find(t => t[0] === series)[2], mx = Math.max(1, ...s.map(x => x[series] || 0)), W = 700, Hh = 200, bw = W / s.length;
+/* Generic bar chart: s = [{d, <key>}], used by the usage chart and the revenue chart. */
+function drawBars(host, s, key, col, f) {
+  f = f || (v => v);
+  const mx = Math.max(1, ...s.map(x => x[key] || 0)), W = 700, Hh = 200, bw = W / Math.max(1, s.length), step = Math.ceil(s.length / 14), showV = s.length <= 31, pad = bw > 20 ? 6 : 1;
   const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (Hh + 28)); svg.setAttribute('width', '100%');
   const add = (n, a, tx) => { const e = document.createElementNS(ns, n); for (const k in a) e.setAttribute(k, a[k]); if (tx != null) e.textContent = tx; svg.append(e); return e; };
-  [0.5, 1].forEach(f => add('line', { x1: 0, x2: W, y1: Hh - f * (Hh - 24), y2: Hh - f * (Hh - 24), stroke: '#262d38', 'stroke-width': 1 }));
+  [0.5, 1].forEach(fr => add('line', { x1: 0, x2: W, y1: Hh - fr * (Hh - 24), y2: Hh - fr * (Hh - 24), stroke: '#262d38', 'stroke-width': 1 }));
   s.forEach((x, i) => {
-    const v = x[series] || 0, h = v * (Hh - 24) / mx, bx = i * bw + 6;
-    add('rect', { x: bx, y: Hh - h, width: bw - 12, height: Math.max(h, 2), rx: 5, fill: v ? col : '#262d38' });
-    if (v) add('text', { x: bx + (bw - 12) / 2, y: Hh - h - 5, fill: '#8b96a8', 'font-size': 11, 'text-anchor': 'middle' }, v);
-    add('text', { x: bx + (bw - 12) / 2, y: Hh + 16, fill: '#8b96a8', 'font-size': 10, 'text-anchor': 'middle' }, x.d);
+    const v = x[key] || 0, h = v * (Hh - 24) / mx, bx = i * bw + pad;
+    add('rect', { x: bx, y: Hh - h, width: Math.max(1, bw - pad * 2), height: Math.max(h, 2), rx: bw > 20 ? 5 : 1, fill: v ? col : '#262d38' });
+    if (v && showV) add('text', { x: bx + (bw - pad * 2) / 2, y: Hh - h - 5, fill: '#8b96a8', 'font-size': s.length > 14 ? 9 : 11, 'text-anchor': 'middle' }, f(v));
+    if (i % step === 0) add('text', { x: bx + (bw - pad * 2) / 2, y: Hh + 16, fill: '#8b96a8', 'font-size': 10, 'text-anchor': 'middle' }, x.d);
   });
-  $('chart').replaceChildren(svg);
+  host.replaceChildren(svg);
+}
+function drawChart() { drawBars($('chart'), D.series, series, TABS.find(t => t[0] === series)[2]); }
+
+/* ---------- v19: alerts ---------- */
+function renderAlerts(list) {
+  const A = $('alerts'); A.replaceChildren();
+  const ic = { bad: '⛔', warn: '⚠️', info: 'ℹ️', good: '📈' };
+  list.forEach(a => { const d = el('div', 'alert ' + a.lvl); d.append(el('span', '', ic[a.lvl] || 'ℹ️'), el('span', '', a.msg)); A.append(d); });
+}
+
+/* ---------- v19: Growth tab ---------- */
+const FUN = { visited: 'Visited the site', login: 'Signed in with Google', joined: 'Joined a meeting', created: 'Created a meeting', power: 'Used whiteboard / files / recording', paid: 'Paid plan (users)' };
+const OSL = { android: 'Android', ios: 'iOS', windows: 'Windows', mac: 'macOS', chromeos: 'ChromeOS', linux: 'Linux', other: 'Other' };
+const BRL = { chrome: 'Chrome', edge: 'Edge', safari: 'Safari', firefox: 'Firefox', samsung: 'Samsung Internet', opera: 'Opera', other: 'Other' };
+const DVL = { mobile: 'Mobile', tablet: 'Tablet', desktop: 'Desktop' };
+const PCOL = ['#2d8cff', '#22c55e', '#f59e0b', '#a78bfa', '#f472b6', '#38bdf8', '#64748b'];
+
+function barList(title, list, label, total) {
+  const card = el('div', 'card'); card.append(el('h3', '', title)); card.firstChild.style.cssText = 'font-size:15px;margin-bottom:8px';
+  if (!list || !list.length) { card.append(el('p', 'note', 'No data yet.')); return card; }
+  const mx = Math.max(1, ...list.map(x => x.views));
+  const head = el('div', 'sr h'); head.style.gridTemplateColumns = '120px minmax(40px,1fr) 70px 70px'; head.append(el('span', '', ''), el('span', '', ''), el('span', 'h2', 'Views'), el('span', 'h2', 'Devices')); card.append(head);
+  list.forEach((x, i) => {
+    const r = el('div', 'sr'), nm = el('div', 'nm'), sw = el('i', 'sw'), bar = el('div', 'bar'), fill = el('i');
+    r.style.gridTemplateColumns = '120px minmax(40px,1fr) 70px 70px';
+    sw.style.background = PCOL[i % PCOL.length]; nm.append(sw, el('span', '', label(x.k))); nm.title = x.k;
+    fill.style.width = (x.views * 100 / mx) + '%'; fill.style.background = PCOL[i % PCOL.length]; bar.append(fill); bar.title = Math.round(x.views * 100 / Math.max(1, total)) + '%';
+    r.append(nm, bar, el('span', 'n', fmt(x.views)), el('span', 'n', fmt(x.devices))); card.append(r);
+  });
+  return card;
+}
+
+function renderGrowth() {
+  const d = D, P = $('p-growth'); P.replaceChildren();
+
+  /* funnel */
+  P.append(el('h2', '', 'Conversion funnel'));
+  const fc = el('div', 'card'), fh = el('div', 'fr h');
+  fh.append(el('span', '', 'Step'), el('span', '', ''), el('span', 'n', 'Count'), el('span', 'n', 'Of first'), el('span', 'n', 'From previous')); fc.append(fh);
+  const f0 = Math.max(1, (d.funnel[0] || {}).n || 1);
+  d.funnel.forEach((x, i) => {
+    const r = el('div', 'fr'), bar = el('div', 'bar'), fill = el('i'), prev = i ? d.funnel[i - 1].n : null;
+    fill.style.width = Math.min(100, x.n * 100 / f0) + '%'; bar.append(fill);
+    r.append(el('span', '', FUN[x.k] || x.k), bar, el('span', 'n', fmt(x.n)), el('span', 'n', Math.round(x.n * 100 / f0) + '%'), el('span', 'n', prev ? (prev > 0 ? Math.round(x.n * 100 / prev) + '%' : '–') : '–'));
+    fc.append(r);
+  });
+  fc.append(el('p', 'note', 'Steps count distinct devices from the newest ' + fmt(100000) + ' events; “Paid plan” counts users with an active paid plan, so its step is only a rough guide. A device that signs in is counted once per step.'));
+  P.append(fc);
+
+  /* retention */
+  const rt = d.retention;
+  P.append(el('h2', '', 'Retention (new devices, last 21 days)'));
+  const g = el('div', 'grid');
+  [['Day-1 return rate', rt.d1 == null ? '–' : rt.d1 + '%', rt.d1n + ' devices old enough', rt.d1 != null && rt.d1 >= 20],
+   ['Day-7 return rate', rt.d7 == null ? '–' : rt.d7 + '%', rt.d7n + ' devices old enough', rt.d7 != null && rt.d7 >= 10]
+  ].forEach(([l, v, s, hot]) => { const c = el('div', 'card k' + (hot ? ' hot' : '')); c.append(el('span', '', l), el('b', '', v), el('small', '', s)); g.append(c); });
+  P.append(g);
+  const rc = el('div', 'card'); rc.style.marginTop = '12px';
+  if (!rt.cohorts.length) rc.append(el('p', 'note', 'No cohorts yet.'));
+  else {
+    const tw = el('div', 'tw'), t = el('table'), hd = el('tr'); ['First seen', 'New devices', 'Back on day 1', 'Back on day 7'].forEach(h => hd.append(el('th', '', h)));
+    const th = el('thead'); th.append(hd); t.append(th); const tb = el('tbody');
+    rt.cohorts.slice().reverse().forEach(c => {
+      const tr = el('tr'); tr.append(el('td', '', c.d), el('td', '', fmt(c.n)),
+        el('td', '', c.d1n ? Math.round(c.d1 * 100 / c.d1n) + '%  (' + c.d1 + '/' + c.d1n + ')' : '–'),
+        el('td', '', c.d7n ? Math.round(c.d7 * 100 / c.d7n) + '%  (' + c.d7 + '/' + c.d7n + ')' : '–')); tb.append(tr);
+    });
+    t.append(tb); tw.append(t); rc.append(tw);
+  }
+  rc.append(el('p', 'note', 'A device “returns” when it sends any event on the calendar day after (day 1) or seven days after (day 7) it was first seen. Days that are not over yet are not counted.'));
+  P.append(rc);
+
+  /* heat map */
+  P.append(el('h2', '', 'When people are active (last 28 days, all events)'));
+  const hc = el('div', 'card'), heat = el('div', 'heat'), mx = Math.max(1, ...d.heat), names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  heat.append(el('span', '', ''));
+  for (let h = 0; h < 24; h++) heat.append(el('span', 'hh', h % 3 === 0 ? String(h) : ''));
+  let peak = { n: -1, dw: 0, h: 0 };
+  [1, 2, 3, 4, 5, 6, 0].forEach(dw => {
+    heat.append(el('span', '', names[dw]));
+    for (let h = 0; h < 24; h++) {
+      const v = d.heat[dw * 24 + h] || 0, c = el('i'); if (v > peak.n) peak = { n: v, dw, h };
+      if (v) c.style.background = 'rgba(45,140,255,' + (0.12 + 0.88 * v / mx).toFixed(2) + ')';
+      c.title = names[dw] + ' ' + h + ':00 · ' + fmt(v) + ' events'; heat.append(c);
+    }
+  });
+  hc.append(heat);
+  hc.append(el('p', 'note', peak.n > 0 ? 'Busiest hour: ' + names[peak.dw] + ' ' + peak.h + ':00–' + (peak.h + 1) + ':00 (' + fmt(peak.n) + ' events). Times are in the Apps Script time zone.' : 'No activity yet.'));
+  P.append(hc);
+
+  /* pages, rooms */
+  const cols = el('div', 'cols2');
+  const pc = el('div', 'card'); pc.append(el('h3', '', 'Most viewed pages')); pc.firstChild.style.cssText = 'font-size:15px;margin-bottom:8px';
+  if (!d.pages.length) pc.append(el('p', 'note', 'No page views yet.'));
+  else {
+    const t = el('table'), hd = el('tr'); ['Page', 'Views', 'Last 7 d', 'Devices'].forEach(h => hd.append(el('th', '', h))); const th = el('thead'); th.append(hd); t.append(th);
+    const tb = el('tbody'); d.pages.forEach(x => { const tr = el('tr'), td = el('td', '', x.k); td.title = x.k; tr.append(td, el('td', '', fmt(x.views)), el('td', '', fmt(x.views7)), el('td', '', fmt(x.devices))); tb.append(tr); });
+    t.append(tb); const w = el('div', 'tw'); w.append(t); pc.append(w);
+  }
+  const rc2 = el('div', 'card'); rc2.append(el('h3', '', 'Busiest rooms (7 days)')); rc2.firstChild.style.cssText = 'font-size:15px;margin-bottom:8px';
+  if (!d.rooms.length) rc2.append(el('p', 'note', 'No meeting joins in the last 7 days.'));
+  else {
+    const t = el('table'), hd = el('tr'); ['Room', 'Joins'].forEach(h => hd.append(el('th', '', h))); const th = el('thead'); th.append(hd); t.append(th);
+    const tb = el('tbody'); d.rooms.forEach(x => { const tr = el('tr'); tr.append(el('td', '', x.room), el('td', '', fmt(x.joins))); tb.append(tr); });
+    t.append(tb); rc2.append(t);
+  }
+  cols.append(pc, rc2); P.append(cols);
+
+  /* platforms */
+  P.append(el('h2', '', 'Platforms (page views)'));
+  const pl = d.platforms, pg = el('div', 'cols2'); pg.style.gridTemplateColumns = 'repeat(auto-fit,minmax(320px,1fr))';
+  pg.append(barList('Operating system', pl.os, k => OSL[k] || k, pl.total), barList('Browser', pl.br, k => BRL[k] || k, pl.total), barList('Device type', pl.dv, k => DVL[k] || k, pl.total));
+  P.append(pg);
+
+  /* source x os, top referrers */
+  const mat = d.sources && d.sources.matrix ? d.sources.matrix : {}, mk = Object.keys(mat);
+  if (mk.length) {
+    P.append(el('h2', '', 'Traffic source × operating system (page views)'));
+    const c = el('div', 'card'), w = el('div', 'tw'), t = el('table'), hd = el('tr'), oss = Object.keys(OSL);
+    hd.append(el('th', '', 'Source')); oss.forEach(o => hd.append(el('th', '', OSL[o]))); const th = el('thead'); th.append(hd); t.append(th);
+    const tb = el('tbody');
+    mk.sort((a, b) => Object.values(mat[b]).reduce((x, y) => x + y, 0) - Object.values(mat[a]).reduce((x, y) => x + y, 0)).forEach(k => {
+      const tr = el('tr'); tr.append(el('td', '', srcLabel(k))); oss.forEach(o => tr.append(el('td', '', mat[k][o] ? fmt(mat[k][o]) : '·'))); tb.append(tr);
+    });
+    t.append(tb); w.append(t); c.append(w); P.append(c);
+  }
+  const hosts = d.sources && d.sources.hosts ? d.sources.hosts : [];
+  if (hosts.length) {
+    P.append(el('h2', '', 'Top referrer websites'));
+    const c = el('div', 'card'), chips = el('div', 'chips');
+    hosts.forEach(h => chips.append(el('span', 'pill', h.host + ' · ' + srcLabel(h.k) + ' · ' + fmt(h.n)))); c.append(chips); P.append(c);
+  }
+}
+
+/* ---------- v19: Revenue tab ---------- */
+let payData = null;
+function renderRevenueSummary() {
+  const d = D, r = d.revenue, P = $('p-revenue'); P.replaceChildren();
+  P.append(el('h2', '', 'Revenue'));
+  if (!r) { const c = el('div', 'card'); c.append(el('p', 'note', 'Revenue could not be read from the Payments sheet.')); P.append(c); }
+  else {
+    const g = el('div', 'grid');
+    const delta = r.prev30 > 0 ? (r.last30 >= r.prev30 ? '+' : '') + Math.round((r.last30 - r.prev30) * 100 / r.prev30) + '% vs previous 30 d' : 'previous 30 d: ' + inr(r.prev30);
+    [['Total revenue', inr(r.total), r.payers + ' paying users', false], ['Last 30 days', inr(r.last30), delta, r.last30 > 0],
+     ['MRR', inr(r.mrr), 'Yearly plans counted ÷ 12', false], ['Active subscribers', fmt(r.subs), 'Pro ' + r.byPlan.pro + ' · Enterprise ' + r.byPlan.enterprise, r.subs > 0],
+     ['ARPU', inr(r.arpu), 'Total ÷ paying users', false], ['Pending', fmt(r.pending), inr(r.pendingAmt) + ' to verify', r.pending > 0],
+     ['Lapsed (30 d)', fmt(r.lapsed), 'Expired, not renewed', false], ['Rejected', fmt(r.rejected), 'All time', false]
+    ].forEach(([l, v, s, hot]) => { const c = el('div', 'card k' + (hot ? ' hot' : '')); c.append(el('span', '', l), el('b', '', v), el('small', '', s)); g.append(c); });
+    P.append(g);
+    const cc = el('div', 'card chart'); cc.style.marginTop = '12px'; cc.append(el('h3', '', 'Revenue per day (approval date, last ' + (d.range || range) + ' days)'));
+    const host = el('div'); cc.append(host); P.append(cc); drawBars(host, r.series, 'amt', '#22c55e', v => '₹' + v);
+    P.append(el('h2', '', 'Expiring within 7 days'));
+    const ec = el('div', 'card');
+    if (!r.expiring.length) ec.append(el('p', 'note', 'No paid plan expires in the next 7 days.'));
+    else {
+      const t = el('table'), hd = el('tr'); ['User', 'Plan', 'Billing', 'Expires'].forEach(h => hd.append(el('th', '', h))); const th = el('thead'); th.append(hd); t.append(th);
+      const tb = el('tbody'); r.expiring.forEach(x => { const tr = el('tr'); tr.append(el('td', '', x.email), el('td', '', x.plan), el('td', '', x.billing), el('td', '', when(x.expires))); tb.append(tr); });
+      t.append(tb); const w = el('div', 'tw'); w.append(t); ec.append(w);
+    }
+    P.append(ec);
+  }
+  /* grant form + payments list (filled by loadPayments) */
+  P.append(el('h2', '', 'Give a plan manually'));
+  const gc = el('div', 'card'), fm = el('div', 'frm');
+  const em = el('input', 'inp'); em.type = 'email'; em.placeholder = 'user email'; em.id = 'grEmail';
+  const pl = el('select', 'sel'); pl.id = 'grPlan'; ['pro', 'enterprise'].forEach(p => { const o = el('option', '', p); o.value = p; pl.append(o); });
+  const bl = el('select', 'sel'); bl.id = 'grBill'; [['monthly', 'Monthly (30 days)'], ['yearly', 'Yearly (365 days)']].forEach(([v, l]) => { const o = el('option', '', l); o.value = v; bl.append(o); });
+  const go = el('button', 'btn', 'Grant plan');
+  go.onclick = async () => {
+    const email = em.value.trim(); if (!email) return toast('Enter an email', true);
+    if (!confirm('Give ' + pl.value + ' (' + bl.value + ') to ' + email + ' without a payment?')) return;
+    go.disabled = true;
+    try { await api('adminGrant', { email, plan: pl.value, billing: bl.value }); toast('Plan granted'); em.value = ''; load(); loadPayments(true); }
+    catch (e) { toast('Failed: ' + (e.message || e), true); }
+    go.disabled = false;
+  };
+  fm.append(em, pl, bl, go); gc.append(fm, el('p', 'note', 'Adds an approved row with amount ₹0 (reference ADMIN) to the Payments sheet. The plan starts now, or after the user’s current plan of the same type ends. The action is written to the Events tab.'));
+  P.append(gc);
+  P.append(el('h2', '', 'Payments'));
+  const pc = el('div', 'card'); pc.id = 'payBox'; pc.append(el('p', 'note', 'Loading…')); P.append(pc);
+  if (tab === 'revenue' && payData) drawPayments();
+}
+async function loadPayments(force) {
+  if (!force && payData && Date.now() - payData.at < 20000) return;
+  try { const j = await api('adminPayments'); payData = { at: Date.now(), items: j.items }; drawPayments(); }
+  catch (e) { const b = $('payBox'); if (b) b.replaceChildren(el('p', 'note', 'Could not load payments (' + (e.message || e) + ').')); }
+}
+function drawPayments() {
+  const box = $('payBox'); if (!box || !payData) return; box.replaceChildren();
+  const bar = el('div', 'row'), f = el('select', 'sel'); [['all', 'All'], ['pending', 'Pending'], ['approved', 'Approved'], ['rejected', 'Rejected']].forEach(([v, l]) => { const o = el('option', '', l); o.value = v; f.append(o); });
+  f.value = box.dataset.f || 'all';
+  const ex = el('button', 'btn alt sm', '⬇ Export CSV'); ex.onclick = () => exportCsv('payments');
+  bar.append(f, el('span', 'sp'), ex); box.append(bar);
+  const list = payData.items.filter(x => f.value === 'all' || x.status === f.value);
+  f.onchange = () => { box.dataset.f = f.value; drawPayments(); };
+  if (!list.length) { box.append(el('p', 'note', 'No payments.')); return; }
+  const t = el('table'), hd = el('tr'); ['Submitted', 'User', 'Plan', 'Amount', 'UTR', 'Status', 'Expires', ''].forEach(h => hd.append(el('th', '', h))); const th = el('thead'); th.append(hd); t.append(th);
+  const tb = el('tbody');
+  list.slice(0, 100).forEach(x => {
+    const tr = el('tr'), st = el('td'), sp = el('span', 'pill ' + (x.status === 'approved' ? 'g' : x.status === 'rejected' ? 'r' : 'a'), x.status); st.append(sp);
+    const ac = el('td'), mk = (label, cls, status, ask) => { const b = el('button', 'btn sm ' + cls, label); b.onclick = async () => { if (ask && !confirm(ask)) return; b.disabled = true;
+      try { await api('adminPayAction', { row: x.row, status }); toast('Updated'); load(); loadPayments(true); } catch (e) { toast('Failed: ' + (e.message || e), true); b.disabled = false; } }; ac.append(b, document.createTextNode(' ')); };
+    if (x.status !== 'approved') mk('Approve', 'ok', 'approved', 'Approve ' + x.plan + ' ' + x.billing + ' for ' + x.email + '? Check your bank history first.');
+    if (x.status !== 'rejected') mk('Reject', 'no', 'rejected', 'Reject this payment' + (x.status === 'approved' ? ' and revoke the plan' : '') + '?');
+    if (x.status !== 'pending') mk('Pending', 'alt', 'pending');
+    const u = el('td', '', x.email); u.title = x.name + ' · ' + x.email; const ut = el('td', '', x.utr); ut.title = x.utr;
+    tr.append(el('td', '', when(x.t)), u, el('td', '', x.plan + ' ' + x.billing), el('td', '', inr(x.amount)), ut, st, el('td', '', x.expires ? day(x.expires) : '–'), ac); tb.append(tr);
+  });
+  t.append(tb); const w = el('div', 'tw'); w.append(t); box.append(w);
+  if (list.length > 100) box.append(el('p', 'note', 'Showing the newest 100 of ' + list.length + '. Use the CSV export for all rows.'));
+}
+
+/* ---------- v19: Users tab ---------- */
+let userData = null;
+function renderUsersTop() {
+  let top = $('uTop'); if (!top) return;
+  top.replaceChildren();
+  const u = D.users; if (!u) return;
+  const g = el('div', 'grid');
+  [['Google users', fmt(u.total), 'In the Users tab'], ['New (7 d)', fmt(u.new7), 'First seen this week'], ['Active (7 d)', fmt(u.active7), 'Seen this week'], ['Active (30 d)', fmt(u.active30), 'Seen this month']]
+    .forEach(([l, v, s]) => { const c = el('div', 'card k'); c.append(el('span', '', l), el('b', '', v), el('small', '', s)); g.append(c); });
+  top.append(g);
+  top.append(el('h2', '', 'Most active users (30 days)'));
+  const c = el('div', 'card');
+  if (!u.top.length) c.append(el('p', 'note', 'No user activity yet.'));
+  else {
+    const t = el('table'), hd = el('tr'); ['User', 'Events', 'Last active'].forEach(h => hd.append(el('th', '', h))); const th = el('thead'); th.append(hd); t.append(th);
+    const tb = el('tbody'); u.top.forEach(x => { const tr = el('tr'); tr.append(el('td', '', x.email), el('td', '', fmt(x.events)), el('td', '', when(x.last))); tb.append(tr); });
+    t.append(tb); const w = el('div', 'tw'); w.append(t); c.append(w);
+  }
+  top.append(c);
+}
+async function loadUsers(force) {
+  const P = $('p-users');
+  if (!P.dataset.built) {
+    P.dataset.built = '1';
+    const top = el('div'); top.id = 'uTop'; P.append(top);
+    P.append(el('h2', '', 'User directory'));
+    const c = el('div', 'card'); c.id = 'uBox'; c.append(el('p', 'note', 'Loading…')); P.append(c);
+  }
+  renderUsersTop();
+  if (!force && userData && Date.now() - userData.at < 30000) return drawUsers();
+  try { const j = await api('adminUsers'); userData = { at: Date.now(), items: j.items, total: j.total }; drawUsers(); }
+  catch (e) { const b = $('uBox'); if (b) b.replaceChildren(el('p', 'note', 'Could not load users (' + (e.message || e) + ').')); }
+}
+function drawUsers() {
+  const box = $('uBox'); if (!box || !userData) return;
+  const keep = box.querySelector('input') ? box.querySelector('input').value : '', pf = box.querySelector('select') ? box.querySelector('select').value : 'all';
+  box.replaceChildren();
+  const bar = el('div', 'row'), q = el('input', 'inp'); q.placeholder = 'Search name or email'; q.value = keep;
+  const f = el('select', 'sel'); [['all', 'All plans'], ['paid', 'Paid only'], ['free', 'Free only']].forEach(([v, l]) => { const o = el('option', '', l); o.value = v; f.append(o); }); f.value = pf;
+  const ex = el('button', 'btn alt sm', '⬇ Export CSV'); ex.onclick = () => exportCsv('users');
+  bar.append(q, f, el('span', 'sp'), ex); box.append(bar);
+  const out = el('div'); box.append(out);
+  const paint = () => {
+    const s = q.value.trim().toLowerCase();
+    const list = userData.items.filter(x => (!s || x.email.includes(s) || x.name.toLowerCase().includes(s)) && (f.value === 'all' || (f.value === 'paid') === (x.plan !== 'free')));
+    out.replaceChildren();
+    if (!list.length) { out.append(el('p', 'note', 'No users match.')); return; }
+    const t = el('table'), hd = el('tr'); ['User', 'Name', 'Plan', 'Plan ends', 'First seen', 'Last seen'].forEach(h => hd.append(el('th', '', h))); const th = el('thead'); th.append(hd); t.append(th);
+    const tb = el('tbody');
+    list.slice(0, 200).forEach(x => { const tr = el('tr'), pt = el('td'); pt.append(el('span', 'pill ' + (x.plan === 'free' ? '' : x.plan === 'pro' ? 'b' : 'v'), x.plan));
+      tr.append(el('td', '', x.email), el('td', '', x.name), pt, el('td', '', x.expires ? day(x.expires) : '–'), el('td', '', day(x.first)), el('td', '', when(x.last))); tb.append(tr); });
+    t.append(tb); const w = el('div', 'tw'); w.append(t); out.append(w);
+    out.append(el('p', 'note', 'Showing ' + Math.min(200, list.length) + ' of ' + fmt(list.length) + ' matching users (' + fmt(userData.total) + ' in total).'));
+  };
+  q.oninput = paint; f.onchange = paint; paint();
+}
+
+/* ---------- v19: Feedback tab ---------- */
+let fbData = null;
+async function loadFeedback(force) {
+  const P = $('p-feedback');
+  if (!P.dataset.built) { P.dataset.built = '1'; P.append(el('h2', '', 'Comments & help')); const c = el('div', 'card'); c.id = 'fbBox'; c.append(el('p', 'note', 'Loading…')); P.append(c); }
+  if (!force && fbData && Date.now() - fbData.at < 20000) return drawFeedback();
+  try { const j = await api('adminFeedback'); fbData = { at: Date.now(), items: j.items }; drawFeedback(); }
+  catch (e) { const b = $('fbBox'); if (b) b.replaceChildren(el('p', 'note', 'Could not load feedback (' + (e.message || e) + ').')); }
+}
+function drawFeedback() {
+  const box = $('fbBox'); if (!box || !fbData) return;
+  const ps = box.querySelectorAll('select'), sv = ps[0] ? ps[0].value : 'new', tv = ps[1] ? ps[1].value : 'all';
+  box.replaceChildren();
+  const bar = el('div', 'row'), fs = el('select', 'sel'), ft = el('select', 'sel');
+  [['all', 'Any status'], ['new', 'New'], ['open', 'Open'], ['resolved', 'Resolved']].forEach(([v, l]) => { const o = el('option', '', l); o.value = v; fs.append(o); });
+  [['all', 'Any type'], ['comment', 'Comment'], ['help', 'Help'], ['bug', 'Bug'], ['idea', 'Idea']].forEach(([v, l]) => { const o = el('option', '', l); o.value = v; ft.append(o); });
+  fs.value = sv; ft.value = tv;
+  const ex = el('button', 'btn alt sm', '⬇ Export CSV'); ex.onclick = () => exportCsv('feedback');
+  bar.append(fs, ft, el('span', 'sp'), ex); box.append(bar);
+  const out = el('div'); box.append(out);
+  const TY = { comment: 'b', help: 'a', bug: 'r', idea: 'v' };
+  const paint = () => {
+    out.replaceChildren();
+    const list = fbData.items.filter(x => (fs.value === 'all' || x.status === fs.value) && (ft.value === 'all' || x.type === ft.value));
+    if (!list.length) { out.append(el('p', 'note', 'Nothing here.')); return; }
+    list.slice(0, 100).forEach(x => {
+      const c = el('div', 'fb'), hd = el('div', 'hd'), st = el('select', 'sel');
+      ['new', 'open', 'resolved'].forEach(s => { const o = el('option', '', s); o.value = s; st.append(o); }); st.value = x.status;
+      st.onchange = async () => { const old = x.status; try { await api('adminFeedbackSet', { row: x.row, status: st.value }); x.status = st.value; toast('Saved'); load(); } catch (e) { st.value = old; toast('Failed: ' + (e.message || e), true); } };
+      hd.append(el('span', 'pill ' + (TY[x.type] || ''), x.type), el('strong', '', x.name || 'Guest'), el('span', '', x.email || 'no email'), el('span', '', x.login), el('span', '', when(x.t)), x.page ? el('span', '', x.page) : el('span'), el('span', 'sp'), st);
+      c.append(hd, el('p', '', x.message)); out.append(c);
+    });
+    if (list.length > 100) out.append(el('p', 'note', 'Showing the newest 100 of ' + list.length + '.'));
+  };
+  fs.onchange = paint; ft.onchange = paint; paint();
+}
+
+/* ---------- v19: System tab ---------- */
+function renderSystem() {
+  const d = D, h = d.health, P = $('p-system'); P.replaceChildren();
+  P.append(el('h2', '', 'Health'));
+  const g = el('div', 'grid');
+  const yn = (ok, yes, no) => ok ? yes : no, ago = t => { if (!t) return 'never'; const m = Math.round((d.at - t) / 60000); return m < 1 ? 'just now' : m < 120 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; };
+  [['Script version', h.version, 'Deployed Apps Script', true], ['Firestore', h.firestore == null ? 'unknown' : yn(h.firestore, 'Connected', 'Not reachable'), h.firestore === false ? (h.fsError || '') : 'Tracking copy + plan snapshots', h.firestore === true],
+   ['Service account (SA_KEY)', yn(h.saKey, 'Set', 'Missing'), yn(h.saKey, 'Script property found', 'Add it in Project settings'), h.saKey],
+   ['Last event', ago(h.lastEvent), h.lastEvent ? when(h.lastEvent) : 'No events yet', h.lastEvent && d.at - h.lastEvent < 6 * 3600000],
+   ['Daily digest', yn(h.digest, 'Installed', h.digestMail ? 'Not installed' : 'Turned off'), h.digestMail ? 'Run installDigestTrigger() once' : 'DIGEST_MAIL = false', h.digest],
+   ['Triggers', fmt(h.triggers), 'Project triggers', false]
+  ].forEach(([l, v, s, hot]) => { const c = el('div', 'card k' + (hot ? ' hot' : '')), b = el('b', 'txt', v); b.title = v; c.append(el('span', '', l), b, el('small', '', s || ' ')); g.append(c); });
+  P.append(g);
+
+  P.append(el('h2', '', 'Sheet sizes (rows)'));
+  const rc = el('div', 'card'), chips = el('div', 'chips'), RL = { events: 'Events', visitors: 'Visitors', installs: 'Installs', users: 'Users', feedback: 'Comments', payments: 'Payments' };
+  Object.keys(h.rows || {}).forEach(k => chips.append(el('span', 'pill', (RL[k] || k) + ' · ' + fmt(h.rows[k])))); rc.append(chips);
+  rc.append(el('p', 'note', 'Google Sheets holds 10 million cells per file. The Events tab has 10 columns, so about 900,000 event rows fit; stats read the newest 100,000. Event rows older than the retention period are also kept in Firestore.'));
+  P.append(rc);
+
+  P.append(el('h2', '', 'Export (CSV, newest 5,000 rows)'));
+  const ec = el('div', 'card'), row = el('div', 'row');
+  [['users', 'Users'], ['feedback', 'Comments'], ['payments', 'Payments'], ['events', 'Events'], ['installs', 'Installs']].forEach(([k, l]) => { const b = el('button', 'btn alt', '⬇ ' + l); b.onclick = () => exportCsv(k, b); row.append(b); });
+  ec.append(row, el('p', 'note', 'Every export is written to the Events tab as an admin action.')); P.append(ec);
+}
+async function exportCsv(what, btn) {
+  if (btn) btn.disabled = true;
+  try { const j = await api('adminExport', { what }); download(j.name, j.csv); toast('Exported ' + fmt(j.rows) + ' rows'); }
+  catch (e) { toast('Export failed: ' + (e.message || e), true); }
+  if (btn) btn.disabled = false;
 }
 </script>
 </body>
